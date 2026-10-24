@@ -18,8 +18,9 @@ dosyalar doğrudan bilgisayarından, sadece gerektiği kadar okunur. İndirme yo
 | Varlık bayrakları | ✅ WMB bayrakları + oyunun WDL action'larının başlangıçta açtığı bayraklar (invisible, passable, bright...) |
 | Uzak kaynak | ✅ kendi bulut kopyandan HTTP Range ile parça parça okuma, Cache Storage önbelleği |
 | Ses (OGG/WAV, 3D ses kaynakları) | ⏳ |
-| WDL (C-Script) yorumlayıcı: kapılar, düşmanlar, envanter, senaryo | ⏳ |
-| Ara sahne videoları (AVI) | ⏳ |
+| WDL (C-Script) derleyici + çalışma zamanı | ✅ oyunun 106 bin satırlık script'i JS'e derleniyor (0 hata); açılış, ana menü, giriş hikâyesi ve ilk bölüm oyunun kendi koduyla çalışıyor |
+| Motor fonksiyonları | ✅ paneller/yazılar, ses (snd_*/media_*), dosyalar (kayıtlar IndexedDB'de), klavye/fare/kumanda, level_load, ent_move/trace/scan, animasyon, parçacıklar · ⏳ eksikler test edildikçe |
+| Ara sahne videoları (WMV2/WMV3) | ⏳ tarayıcılar WMV oynatamıyor; şimdilik atlanıyor |
 
 ## Oynamak
 

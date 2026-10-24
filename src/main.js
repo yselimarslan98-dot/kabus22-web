@@ -217,6 +217,7 @@ $('#dir-input').onchange = e => useFS(GameFS.fromFileList(e.target.files)).catch
 (async () => {
   const params = new URLSearchParams(location.search);
   if (params.has('dev')) {
+    state.dev = true;
     await useFS(await GameFS.fromDevServer(), 'dev');
     if (params.has('play')) { await playGame(); return; }
     const want = params.get('level');
@@ -291,7 +292,7 @@ async function playGame() {
   const logEl = $('#game-log');
   game = new Game({
     fs: state.fs, renderer: gr, scene: gscene, uiCanvas: $('#game-ui'),
-    onLog: m => { logEl.textContent += m + '\n'; logEl.scrollTop = logEl.scrollHeight; },
+    onLog: m => { logEl.textContent += m + '\n'; logEl.scrollTop = logEl.scrollHeight; if (state.dev) console.warn(m); },
     onExit: () => { game?.stop(); game = null; show('screen-menu'); },
   });
   window.k22.game = game;
