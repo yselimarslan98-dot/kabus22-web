@@ -273,7 +273,7 @@ export class World {
         this.createEnt(o.file, null, 0, 0, o)._action = action;
       }
       R.paused = false;
-      for (const e of [...this.ents]) if (e._action) { const a = e._action; e._action = null; R.call(a, { me: e, you: 0 }, []); }
+      for (const e of [...this.ents]) if (e._action) { const a = e._action; e._action = null; e._actionName = a.name; R.call(a, { me: e, you: 0 }, []); }
     })().catch(err => { R.paused = false; R.error(err, { name: 'level_load' }); }).finally(() => { this.loading = null; R.paused = false; });
     return 0;
   }
@@ -814,22 +814,26 @@ export class World {
       return W.moveEnt(e, [wx + ax, wy + ay, wz + az], val(mode), c);
     };
     B.move = (c, e, rel, abs) => B.c_move(c, e, rel, abs, G.move_mode);
-    B.trace = (c, from, to) => {
-      const h = W.traceRay(vec.rd(from), vec.rd(to), val(G.trace_mode), c.me, c.you);
-      if (!h) { G.result = 0; return 0; }
+    const trace = (c, from, to, mode) => {
+      const f = vec.rd(from), t = vec.rd(to);
+      const h = W.traceRay(f, t, mode, c.me, c.you);
+      if (!h) { c.you = 0; G.result = 0; return 0; }
+      let dist = h.dist;
+      // use_box sweeps the bounding box of me: the distance is measured from the box surface,
+      // so a downward trace gives the gap under the feet (negative when sunk into the floor).
+      if ((mode & MODE.use_box) && c.me) {
+        const e = c.me, d = [t[0] - f[0], t[1] - f[1], t[2] - f[2]], L = Math.hypot(...d) || 1;
+        const [dx, dy, dz] = d.map(v => v / L);
+        dist -= (dx > 0 ? dx * e.max_x : dx * e.min_x) + (dy > 0 ? dy * e.max_y : dy * e.min_y) + (dz > 0 ? dz * e.max_z : dz * e.min_z);
+      }
       vec.wr(G.target, ...h.point);
-      vec.wr(G.normal, ...h.normal);
-      if (h.ent) c.you = h.ent;
-      G.result = h.dist;
-      return h.dist;
+      // vars are fixed point in A6, so a flat floor gives normal.z == 1 exactly; scripts test that
+      vec.wr(G.normal, ...h.normal.map(n => Math.round(n * 1000) / 1000));
+      c.you = h.ent || 0;   // you is the hit entity, or NULL when the ray hit the level
+      return (G.result = dist);
     };
-    B.c_trace = (c, from, to, mode) => {
-      const h = W.traceRay(vec.rd(from), vec.rd(to), val(mode), c.me, c.you);
-      if (!h) { G.result = 0; return 0; }
-      vec.wr(G.target, ...h.point); vec.wr(G.normal, ...h.normal);
-      if (h.ent) c.you = h.ent;
-      return (G.result = h.dist);
-    };
+    B.trace = (c, from, to) => trace(c, from, to, val(G.trace_mode));
+    B.c_trace = (c, from, to, mode) => trace(c, from, to, val(mode));
     B.scan_entity = (c, pos, ang) => W.scan(c.me, pos, ang);
     B.c_scan = (c, pos, ang, size) => W.scan(c.me, pos, [vec.rd(size)[0] || 360, 0, vec.rd(size)[2] || vec.rd(ang)[2]]);
 

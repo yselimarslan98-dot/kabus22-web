@@ -124,6 +124,7 @@ function readTextures(u8, dv, L) {
   return out;
 }
 
+// The records are C structs: after the char arrays the floats start on the next 4-byte boundary.
 function readObjects(u8, dv, L) {
   if (!L.len) return [];
   const f32 = o => dv.getFloat32(o, true), u32 = o => dv.getUint32(o, true);
@@ -137,7 +138,7 @@ function readObjects(u8, dv, L) {
       case 3: out.push({
         type: 'entity', origin: vec(p), angle: vec(p + 12), scale: vec(p + 24),
         name: cstr(u8, p + 36, 20), file: cstr(u8, p + 56, 13), action: cstr(u8, p + 69, 20),
-        skills: Array.from({ length: 8 }, (_, k) => f32(p + 89 + k * 4)), ambient: f32(p + 121), flags: u32(p + 125),
+        skills: Array.from({ length: 8 }, (_, k) => f32(p + 92 + k * 4)), flags: u32(p + 124), ambient: f32(p + 128),
       }); break;
       case 4: out.push({ type: 'sound', origin: vec(p), volume: f32(p + 12), range: u32(p + 24), file: cstr(u8, p + 32, 33) }); break;
       case 5: out.push({ type: 'info', azimuth: f32(p + 12), elevation: f32(p + 16), lmapSize: u8[p + 25], sunColor: u32(p + 28), ambientColor: u32(p + 32) }); break;
@@ -150,8 +151,8 @@ function readObjects(u8, dv, L) {
       case 7: out.push({
         type: 'entity', origin: vec(p), angle: vec(p + 12), scale: vec(p + 24),
         name: cstr(u8, p + 36, 33), file: cstr(u8, p + 69, 33), action: cstr(u8, p + 102, 33),
-        skills: Array.from({ length: 20 }, (_, k) => f32(p + 135 + k * 4)), flags: u32(p + 215),
-        ambient: f32(p + 219), albedo: f32(p + 223), string1: cstr(u8, p + 268, 33), string2: cstr(u8, p + 301, 33),
+        skills: Array.from({ length: 20 }, (_, k) => f32(p + 136 + k * 4)), flags: u32(p + 216),
+        ambient: f32(p + 220), albedo: f32(p + 224), string1: cstr(u8, p + 268, 33), string2: cstr(u8, p + 301, 33),
       }); break;
       case 8: out.push({ type: 'region', min: vec(p), max: vec(p + 12), name: cstr(u8, p + 32, 32) }); break;
       default: out.push({ type: 'unknown', id: type });

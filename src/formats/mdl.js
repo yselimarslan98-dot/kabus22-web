@@ -120,7 +120,7 @@ function parseMdl45(u8, dv, magic) {
     }
     frames.push({ name, pos: expand(w.vmap, verts) });
   }
-  return { version: magic, skins, uv: w.uv, index: w.index, frames };
+  return { version: magic, skins, uv: w.uv, index: w.index, frames, vmap: w.vmap };
 }
 
 function parseMdl7(u8, dv) {
