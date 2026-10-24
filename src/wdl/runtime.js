@@ -174,6 +174,7 @@ export class Runtime {
 
   // ----- memory -----
   ref(c, k) {
+    if (k === 'pos' && c && c.kind === 'entity') k = 'x';   // my.pos is the position vector
     if (c instanceof Ref) {             // ref to a field of a vector param: p.y
       const off = typeof k === 'number' ? k : VECOFF[k];
       if (off !== undefined) return new Ref(c.c, typeof c.k === 'number' ? c.k + off : c.key(off));

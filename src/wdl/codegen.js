@@ -92,8 +92,13 @@ export function compile(prog) {
       if (n.k === 'var') for (const d of n.decls) if (!locals.has(d.name) && !params.has(d.name)) locals.set(d.name, { array: !!d.size, kind: d.kind });
       for (const k in n) { const v = n[k]; if (Array.isArray(v)) v.forEach(find); else if (v && typeof v === 'object') find(v); }
     })(f.body);
-
     const isArrayName = n => locals.get(n)?.array || (!locals.has(n) && !params.has(n) && globals.get(n)?.array);
+    // `var h; h.z = 1;` uses a scalar like a vector (the engine just uses the memory after it), while
+    // `var e; e = you; e.x` uses it as a pointer. A scalar local gets a companion array ($h$v) that
+    // holds .y/.z while it holds a number; when it holds an object, member access goes to the object.
+    const companions = new Set();
+    const scalarLocal = n => (locals.has(n) && !locals.get(n).array && locals.get(n).kind !== 'string') || (params.has(n) && !vecP.has(params.get(n)));
+    const companion = n => { companions.add(n); return loc(n) + '$v'; };
 
     function idRef(name) {
       if (name === 'my' || name === 'me') return 'ctx.me';
@@ -115,6 +120,10 @@ export function compile(prog) {
         case 'mem': {
           const off = VECOFF[e.name];
           if (off !== undefined && e.o.k === 'id' && isArrayName(e.o.v)) return `(${idRef(e.o.v)}[${off}] ?? 0)`;
+          if (off !== undefined && e.o.k === 'id' && scalarLocal(e.o.v)) {
+            const v = loc(e.o.v), c = companion(e.o.v);
+            return `((typeof ${v} === 'object' && ${v}) ? R.get(${v}, ${jsStr(e.name)}) : ${off === 0 ? v : `${c}[${off}]`})`;
+          }
           return `R.get(${ex(e.o)}, ${jsStr(e.name)})`;
         }
         case 'idx':
@@ -161,6 +170,11 @@ export function compile(prog) {
           const r = `${idRef(t.o.v)}[${off}]`;
           return `(${r} = ${combine(`(${r} ?? 0)`)})`;
         }
+        if (off !== undefined && t.o.k === 'id' && scalarLocal(t.o.v)) {
+          const v = loc(t.o.v), c = companion(t.o.v), slot = off === 0 ? v : `${c}[${off}]`;
+          const value = bin ? `(${ex(t)} ${bin} ${rhs})` : rhs;
+          return `((typeof ${v} === 'object' && ${v}) ? R.set(${v}, ${jsStr(t.name)}, ${value}) : (${slot} = ${value}))`;
+        }
         const o = ex(t.o);
         return bin ? `R.op(${o}, ${jsStr(t.name)}, ${jsStr(bin)}, ${rhs})` : `R.set(${o}, ${jsStr(t.name)}, ${rhs})`;
       }
@@ -189,9 +203,9 @@ export function compile(prog) {
         // A scalar passed where a vector is expected: the engine writes its first component into it
         // (vec_to_angle(angle_var, dir)). Locals go through a temporary box written back after the call.
         if ((locals.has(e.v) || (pi >= 0 && !vecP.has(pi)))) {
-          const box = `$$b${temps++}`;
-          writeback.push(`${loc(e.v)} = ${box}[0]`);
-          return `(${box} = [${loc(e.v)}, 0, 0], R.ref(${box}, 0))`;
+          const v = loc(e.v), c = companion(e.v);
+          writeback.push(`(typeof ${v} !== 'object' ? (${v} = ${c}[0]) : 0)`);
+          return `((typeof ${v} === 'object' && ${v}) ? R.ref(${v}, 'x') : (${c}[0] = ${v}, R.ref(${c}, 0)))`;
         }
         if (!params.has(e.v) && globals.get(e.v)?.kind?.startsWith('var')) return `R.ref(G, ${jsStr(e.v)})`;
       }
@@ -313,7 +327,8 @@ export function compile(prog) {
     const ps = f.params.map(loc);
     const body = hasLabels ? lowered(f.body) : st(f.body, 1) + '  return 0;\n';
     const decl = [...locals.keys()].filter(n => !params.has(n)).map(n => `${loc(n)} = 0`);
-    for (let t = 0; t < temps; t++) decl.push(`$$b${t}`);
+    for (let t = 0; t < temps; t++) decl.push(`$b${t}`);
+    for (const n of companions) decl.push(`${loc(n)}$v = [0, 0, 0]`);
     return `F[${jsStr(f.name)}] = function* w_${loc(f.name).slice(1)}(ctx${ps.map(p => ', ' + p).join('')}) {\n` +
       (decl.length ? `  let ${decl.join(', ')};\n` : '') + body + '};\n';
   }
