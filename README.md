@@ -39,6 +39,7 @@ dosyalar doğrudan bilgisayarından, sadece gerektiği kadar okunur. İndirme yo
 
 | Arazi (HMP) | ✅ çizim + poligon çarpışma |
 | Bölüm taraması | ✅ tanımlı tüm bölümler (1–103; 63 ve 96 oyunda boş) doğru karakterle oyunun kendi yükleyicisiyle açıldı (tools/cdp.mjs) |
+| Dövüş | ✅ nişan alma (otomatik hedef), ateş, mermi izleri/sesleri, düşman saldırısı ve hasar, düşman ölümü (Mekke bölümünde test edildi) |
 
 ## Uzak kaynak (kendi kopyan için)
 
