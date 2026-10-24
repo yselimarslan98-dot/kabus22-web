@@ -8,6 +8,7 @@ import { EngineInput } from './input.js';
 import { EngineAudio } from './audio.js';
 import { EngineFiles } from './files.js';
 import { World, View } from './world.js';
+import { VideoConverter } from './video.js';
 
 const val = v => (v instanceof Ref ? v.get(0) : typeof v === 'number' ? v : +v || 0);
 const text = v => (v instanceof Str ? v.s : v == null || v === 0 ? '' : String(v));
@@ -42,6 +43,10 @@ export class Game {
     this.ui = new UI(R, uiCanvas, this.images);
     this.files = new EngineFiles(R, fs);
     this.audio = new EngineAudio(R, fs);
+    this.video = new VideoConverter(fs);
+    this.audio.video = this.video;
+    this.audio.videoLayer = document.getElementById('game-video');
+    this.statusEl = document.getElementById('game-status');
     this.world = new World(R, fs, this.images, renderer, scene);
     this.input = new EngineInput(R, uiCanvas, (x, y) => this.toScreen(x, y));
     this.views = [];
@@ -131,7 +136,7 @@ export class Game {
     const [w, h] = this.size;
     const s = Math.min(innerWidth / w, innerHeight / h);
     const cw = Math.round(w * s), ch = Math.round(h * s);
-    for (const el of [this.uiCanvas, this.renderer.domElement]) {
+    for (const el of [this.uiCanvas, this.renderer.domElement, this.audio.videoLayer].filter(Boolean)) {
       Object.assign(el.style, { width: cw + 'px', height: ch + 'px', left: ((innerWidth - cw) / 2) + 'px', top: ((innerHeight - ch) / 2) + 'px', position: 'fixed' });
     }
     this.renderer.setSize(cw, ch, false);
@@ -155,6 +160,12 @@ export class Game {
     addEventListener('resize', this.onResize);
     this.last = performance.now();
     this.running = true;
+    // Convert the remaining videos in the background, a while after start-up.
+    setTimeout(() => {
+      if (!this.running) return;
+      const lang = ['turkish', 'english', 'deutsch'][val(this.R.G.dd_dil)] || 'english';
+      for (const f of this.video.allVideos(lang)) this.video.get(f).catch(() => {});
+    }, 20000);
     const loop = now => {
       if (!this.running) return;
       requestAnimationFrame(loop);
@@ -175,12 +186,25 @@ export class Game {
         if (typeof fn === 'function') R.call(fn, { me: 0, you: 0 }, []);
       }
     }
+    this.showStatus();
     const [mx, my] = R.G.mouse_pos;
     this.ui.pointer(mx, my, false, false);
     if (!R.paused) R.frame(dt);
     for (const step of [() => this.world.update(dt), () => this.world.render(this.views, this.size), () => this.ui.draw()]) {
       try { step(); } catch (e) { R.warnOnce('motor hatası: ' + e.message); console.error(e); }
     }
+  }
+
+  // While a video the game waits for is still converting, say so.
+  showStatus() {
+    const waiting = [...this.audio.media.values()].find(m => m.video && !m.el && !m.ended);
+    const el = this.statusEl;
+    if (!el) return;
+    if (!waiting) { el.hidden = true; return; }
+    const p = this.video.progress(waiting.video);
+    el.hidden = false;
+    el.textContent = this.video.ffmpeg ? `Video hazırlanıyor… %${Math.round(p * 100)}
+(ilk seferde bir kez)` : 'Video çözücü yükleniyor…';
   }
 
   stop() {

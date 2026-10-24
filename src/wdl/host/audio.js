@@ -101,13 +101,31 @@ export class EngineAudio {
   mediaPlay(file, vol, loop) {
     const name = text(file);
     const h = this.next++;
-    const m = { ended: false, el: null, stop() { this.ended = true; if (this.el) { this.el.pause(); URL.revokeObjectURL(this.el.src); } } };
+    const m = { ended: false, el: null, stop() { this.ended = true; if (this.el) { this.el.pause(); this.el.remove(); URL.revokeObjectURL(this.el.src); } } };
     this.media.set(h, m);
     this.R.G.media_handle = h;
     const resolved = this.fs.resolve(name) || this.fs.resolve(name.split(/[\\/]/).pop());
-    if (!resolved || !/\.(ogg|wav|mp3)$/i.test(resolved)) {
-      this.R.warnOnce('oynatılamayan medya (video henüz desteklenmiyor): ' + name);
+    if (!resolved) {
+      this.R.warnOnce('medya bulunamadı: ' + name);
       m.ended = true;
+      return h;
+    }
+    if (!/\.(ogg|wav|mp3)$/i.test(resolved)) {
+      // Video: converted to MP4 on first use; the scripts see it "playing" while it converts.
+      if (!this.video) { m.ended = true; return h; }
+      m.video = resolved;
+      this.video.get(resolved, true).then(blob => {
+        if (m.ended) return;
+        const el = document.createElement('video');
+        el.src = URL.createObjectURL(blob);
+        el.loop = loop;
+        el.playsInline = true;
+        el.volume = clamp01(val(vol) / 100);
+        el.onended = () => { if (!loop) m.stop(); };
+        m.el = el;
+        this.videoLayer?.append(el);
+        el.play().catch(() => { el.muted = true; el.play().catch(() => m.stop()); });
+      }, e => { this.R.warnOnce('video oynatılamadı: ' + name + ' (' + e.message + ')'); m.ended = true; });
       return h;
     }
     this.fs.read(resolved).then(bytes => {

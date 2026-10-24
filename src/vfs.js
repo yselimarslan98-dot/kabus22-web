@@ -122,7 +122,8 @@ export class GameFS {
 
   // Old entity records store file names in 13 bytes ("shasi100t2.md"); resolve those by prefix.
   resolve(name) {
-    const k = name.toLowerCase().replace(/\\/g, '/');
+    // Scripts write paths like "_data////language////turkish////video////vtst.k22".
+    const k = name.toLowerCase().replace(/\\/g, '/').replace(/\/{2,}/g, '/').replace(/^\.?\//, '');
     if (this.entries.has(k) || this.files.has(k)) return k;
     if (k.length < 12) return null;
     for (const e of this.entries.keys()) if (e.startsWith(k)) return e;
