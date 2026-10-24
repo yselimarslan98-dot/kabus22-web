@@ -36,6 +36,7 @@ export class Game {
     this.log = [];
     const R = this.R = new Runtime({
       onWarn: m => { this.log.push(m); onLog(m); },
+      onInfo: m => { this.log.push(m); onLog(m); },
       onError: (m, e) => { this.log.push('HATA ' + m); onLog('HATA ' + m); console.error('[wdl]', m, e); },
       exit: onExit,
     });

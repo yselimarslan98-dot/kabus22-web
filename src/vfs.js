@@ -6,6 +6,9 @@ import { idbGet, idbSet } from './idb.js';
 
 const INDEX_VERSION = 1;
 
+// Scripts write paths like "_data////language////turkish////video////vtst.k22\t".
+const normName = name => String(name).trim().toLowerCase().replace(/\\/g, '/').replace(/\/{2,}/g, '/').replace(/^\.?\//, '');
+
 // Blob-like view of a remote file (dev server or the player's own bucket), read with HTTP Range
 // requests. Remote reads are kept in Cache Storage so a level is downloaded only once.
 const CACHE = 'kabus22-remote-v1';
@@ -122,8 +125,7 @@ export class GameFS {
 
   // Old entity records store file names in 13 bytes ("shasi100t2.md"); resolve those by prefix.
   resolve(name) {
-    // Scripts write paths like "_data////language////turkish////video////vtst.k22".
-    const k = name.toLowerCase().replace(/\\/g, '/').replace(/\/{2,}/g, '/').replace(/^\.?\//, '');
+    const k = normName(name);
     if (this.entries.has(k) || this.files.has(k)) return k;
     if (k.length < 12) return null;
     for (const e of this.entries.keys()) if (e.startsWith(k)) return e;
@@ -131,12 +133,12 @@ export class GameFS {
   }
 
   has(name) {
-    const k = name.toLowerCase();
+    const k = normName(name);
     return this.entries.has(k) || this.files.has(k);
   }
 
   async read(name) {
-    const k = name.toLowerCase().replace(/\\/g, '/');
+    const k = normName(name);
     const hit = this.entries.get(k);
     if (hit) return readEntryBlob(hit.blob, hit.entry);
     const f = this.files.get(k);

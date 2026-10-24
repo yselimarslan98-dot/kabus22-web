@@ -165,7 +165,7 @@ export class Runtime {
       if (off !== undefined) return new Ref(c.c, typeof c.k === 'number' ? c.k + off : c.key(off));
       return new Ref(c.c, k);
     }
-    if (!c) { this.warnOnce('boş işaretçi (vektör)'); return new Ref([0, 0, 0], 0); }
+    if (!c) { this.warnOnce(`boş işaretçi (vektör) .${k} (${this.current?.name ?? '?'})`); return new Ref([0, 0, 0], 0); }
     if (Array.isArray(c) && typeof k === 'string') return new Ref(c, VECOFF[k] ?? 0);
     if (typeof k === 'number' && !Array.isArray(c) && !ArrayBuffer.isView(c)) return new Ref(c, k);
     return new Ref(c, k);

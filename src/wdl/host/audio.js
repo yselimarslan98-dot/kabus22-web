@@ -122,6 +122,8 @@ export class EngineAudio {
         el.playsInline = true;
         el.volume = clamp01(val(vol) / 100);
         el.onended = () => { if (!loop) m.stop(); };
+        el.onerror = () => { this.R.warn(`video hatası: ${name} (${el.error?.message || el.error?.code})`); m.stop(); };
+        el.onplaying = () => this.R.host.onInfo?.(`video oynuyor: ${resolved} ${el.videoWidth}x${el.videoHeight}, ${el.duration.toFixed(1)} sn`);
         m.el = el;
         this.videoLayer?.append(el);
         el.play().catch(() => { el.muted = true; el.play().catch(() => m.stop()); });

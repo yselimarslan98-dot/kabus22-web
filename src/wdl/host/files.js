@@ -5,7 +5,7 @@ import { idbGet, idbSet } from '../../idb.js';
 
 const val = v => (v instanceof Ref ? v.get(0) : typeof v === 'number' ? v : +v || 0);
 const text = v => (v instanceof Str ? v.s : v == null || v === 0 ? '' : String(v));
-const norm = n => text(n).toLowerCase().replace(/\\/g, '/').replace(/^\.\//, '');
+const norm = n => text(n).trim().toLowerCase().replace(/\\/g, '/').replace(/\/{2,}/g, '/').replace(/^\.?\//, '');
 const enc = new TextEncoder(), dec = new TextDecoder('windows-1254');
 
 export class EngineFiles {
