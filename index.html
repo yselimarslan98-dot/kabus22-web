@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kabus 22 Web</title>
+<meta name="description" content="Kabus 22 için tarayıcı tabanlı motor portu. Kendi oyun kurulumunuzla çalışır.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 fill=%22%2307080a%22/%3E%3Ctext x=%2216%22 y=%2223%22 font-size=%2218%22 text-anchor=%22middle%22 fill=%22%23b3261e%22 font-family=%22sans-serif%22 font-weight=%22bold%22%3E22%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="src/style.css">
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.8.3/build/index.module.js" } }
+</script>
+</head>
+<body>
+<div id="bg"></div>
+
+<section id="screen-start" class="screen active">
+  <div class="panel">
+    <h1>KABUS <span>22</span></h1>
+    <p class="sub">Tarayıcı motoru</p>
+    <p>Bu sayfa oyunun motorunu tarayıcıda yeniden uygular. Oyun verisi içermez:
+       kendi Kabus 22 kurulum klasörünü seçersin, dosyalar <b>bilgisayarından okunur</b>,
+       hiçbir yere yüklenmez ve indirme beklemezsin. Sadece o an gereken bölüm açılır.</p>
+    <div class="buttons">
+      <button id="btn-resume" class="primary" hidden>Devam et</button>
+      <button id="btn-pick" class="primary" data-nav>Oyun klasörünü seç</button>
+      <input id="dir-input" type="file" webkitdirectory directory multiple hidden>
+    </div>
+    <p id="start-msg" class="msg"></p>
+    <p class="fine">Önerilen tarayıcı: Chrome veya Edge (klasör izni kalıcı olur). Firefox/Safari'de klasör her açılışta yeniden seçilir.</p>
+  </div>
+</section>
+
+<section id="screen-loading" class="screen">
+  <div class="panel">
+    <h2 id="load-title">Yükleniyor</h2>
+    <div class="bar"><div id="load-bar"></div></div>
+    <p id="load-msg" class="msg"></p>
+  </div>
+</section>
+
+<section id="screen-menu" class="screen">
+  <div class="panel wide">
+    <h1>KABUS <span>22</span></h1>
+    <div class="row">
+      <label>Dil
+        <select id="sel-lang" data-nav>
+          <option value="tr">Türkçe</option><option value="en">English</option><option value="de">Deutsch</option>
+        </select>
+      </label>
+      <label>Karakter
+        <select id="sel-char" data-nav>
+          <option value="oyuncu_demir">Demir</option><option value="oyuncu_ebru">Ebru</option>
+        </select>
+      </label>
+      <label>Mod
+        <select id="sel-mode" data-nav>
+          <option value="walk">Yürü (çarpışmalı)</option><option value="fly">Serbest kamera</option>
+        </select>
+      </label>
+    </div>
+    <h3>Bölümler</h3>
+    <ol id="level-list" class="levels"></ol>
+    <p class="fine" id="pad-status">Kumanda bağlı değil. Bağlayıp bir tuşa bas.</p>
+  </div>
+</section>
+
+<section id="screen-game" class="screen">
+  <canvas id="view"></canvas>
+  <div id="hud">
+    <div id="hud-level"></div>
+    <div id="hud-hint"></div>
+    <div id="hud-fps"></div>
+  </div>
+  <div id="pause" class="overlay" hidden>
+    <div class="panel">
+      <h2>Duraklatıldı</h2>
+      <div class="buttons col">
+        <button id="btn-continue" class="primary" data-nav>Devam</button>
+        <button id="btn-mode" data-nav>Mod değiştir</button>
+        <button id="btn-quit" data-nav>Bölüm seçimine dön</button>
+      </div>
+      <table class="keys">
+        <tr><th></th><th>Klavye / Fare</th><th>Kumanda</th></tr>
+        <tr><td>Hareket</td><td>W A S D</td><td>Sol çubuk</td></tr>
+        <tr><td>Bakış</td><td>Fare</td><td>Sağ çubuk</td></tr>
+        <tr><td>Koş</td><td>Shift</td><td>LT / L3</td></tr>
+        <tr><td>Zıpla / yüksel</td><td>Boşluk</td><td>A / ✕</td></tr>
+        <tr><td>Çömel / alçal</td><td>C</td><td>B / ◯</td></tr>
+        <tr><td>Fener</td><td>F</td><td>Y / △</td></tr>
+        <tr><td>Menü</td><td>Esc</td><td>Start / Options</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
