@@ -36,6 +36,21 @@ export class Images {
     c.hasAlpha = im.alpha;
     return c;
   }
+  // A sub-bitmap of a sheet as its own canvas, so scaling doesn't bleed in the neighbouring frames.
+  sub(file, x, y, w, h) {
+    const img = this.get(file);
+    if (!img || (!x && !y && w === img.width && h === img.height)) return img;
+    const key = `${x},${y},${w},${h}`;
+    img.subs ??= new Map();
+    let c = img.subs.get(key);
+    if (!c) {
+      c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, x, y, w, h, 0, 0, w, h);
+      img.subs.set(key, c);
+    }
+    return c;
+  }
   purge(file) { if (file) this.cache.delete(String(file).toLowerCase().replace(/\\/g, '/')); }
 }
 
@@ -108,7 +123,7 @@ export class UI {
     const img = this.images.get(b.file);
     if (!img) return;
     const w = b.w || img.width, h = b.h || img.height;
-    this.ctx.drawImage(img, b.x || 0, b.y || 0, w, h, x, y, w * sx, h * sy);
+    this.ctx.drawImage(this.images.sub(b.file, b.x || 0, b.y || 0, w, h), x, y, w * sx, h * sy);
   }
 
   font(f, sy = 1) {

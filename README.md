@@ -37,9 +37,13 @@ dosyalar doğrudan bilgisayarından, sadece gerektiği kadar okunur. İndirme yo
 | Fener | F | Y / △ |
 | Menü | Esc | Start / Options |
 
+Oyunun içinde oyunun kendi tuşları geçerlidir (Seçenekler'den değiştirilebilir): oklar hareket, S silahı kaldır, D ateş, A koş, Q büyü, M envanter, H harita, Esc menü.
+
 | Arazi (HMP) | ✅ çizim + poligon çarpışma |
 | Bölüm taraması | ✅ tanımlı tüm bölümler (1–103; 63 ve 96 oyunda boş) doğru karakterle oyunun kendi yükleyicisiyle açıldı (tools/cdp.mjs) |
 | Dövüş | ✅ nişan alma (otomatik hedef), ateş, mermi izleri/sesleri, düşman saldırısı ve hasar, düşman ölümü (Mekke bölümünde test edildi) |
+| Envanter | ✅ silahlar/mermi sayıları, nesneler, dokümanlar (metin + görsel), Kullan/Doldur/Göster alt menüsü |
+| Kayıt / yükleme | ✅ kayıt noktaları ve otomatik kayıt IndexedDB'ye yazar; ana menüdeki Yükle listesi tarihle gösterir, yükleme bölümü ve durumu geri getirir |
 
 ## Uzak kaynak (kendi kopyan için)
 
