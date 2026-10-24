@@ -141,7 +141,7 @@ export function compile(prog) {
             case '||': return `(${a} || ${b} ? 1 : 0)`;
             case '==': case '!=': case '<': case '<=': case '>': case '>=':
               return `(${a} ${e.op} ${b} ? 1 : 0)`;
-            default: return `(${a} ${e.op} ${b})`;
+            default: return infix(a, e.op, b);
           }
         }
         case 'asg': return assign(e.target, e.op, ex(e.e));
@@ -154,10 +154,15 @@ export function compile(prog) {
       throw new Error(`bilinmeyen ifade ${e.k}`);
     }
 
+    // Bitwise operators work on the fixed-point value (R.bit); the rest map to JS directly.
+    function infix(a, op, b) {
+      return op === '&' || op === '|' || op === '^' ? `R.bit(${a}, ${jsStr(op)}, ${b})` : `(${a} ${op} ${b})`;
+    }
+
     // Assignment (also compound ops) -> JS expression evaluating to the new value.
     function assign(t, op, rhs) {
       const bin = op === '=' ? null : op.slice(0, -1);
-      const combine = cur => (bin ? `(${cur} ${bin} ${rhs})` : rhs);
+      const combine = cur => (bin ? infix(cur, bin, rhs) : rhs);
       if (t.k === 'id') {
         const r = idRef(t.v);
         if (isArrayName(t.v)) return `(${r}[0] = ${combine(`(${r}[0] ?? 0)`)})`;
@@ -172,7 +177,7 @@ export function compile(prog) {
         }
         if (off !== undefined && t.o.k === 'id' && scalarLocal(t.o.v)) {
           const v = loc(t.o.v), c = companion(t.o.v), slot = off === 0 ? v : `${c}[${off}]`;
-          const value = bin ? `(${ex(t)} ${bin} ${rhs})` : rhs;
+          const value = bin ? infix(ex(t), bin, rhs) : rhs;
           return `((typeof ${v} === 'object' && ${v}) ? R.set(${v}, ${jsStr(t.name)}, ${value}) : (${slot} = ${value}))`;
         }
         const o = ex(t.o);

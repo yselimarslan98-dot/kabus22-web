@@ -206,6 +206,7 @@ export class Runtime {
     if (o.setProp) o.setProp(k, v); else o[k] = v;
     return v;
   }
+  bit(a, op, b) { return bit(a, op, b); }
   op(o, k, op, v) { return this.set(o, k, arith(this.get(o, k), op, v)); }
   getIdx(o, i) {
     i |= 0;
@@ -241,10 +242,19 @@ export class Runtime {
   props(obj, list) { obj.def = list; }
 }
 
+// A6 vars are 22.10 fixed point and & | ^ act on the raw value, so 0.5 | 0 stays 0.5
+// (the scripts OR analog joystick values into key states). Whole numbers use plain integer ops.
+function bit(a, op, b) {
+  a = +a || 0; b = +b || 0;
+  const f = Number.isInteger(a) && Number.isInteger(b) ? 1 : 1024;
+  const x = Math.round(a * f), y = Math.round(b * f);
+  return (op === '&' ? x & y : op === '|' ? x | y : x ^ y) / f;
+}
+
 function arith(a, op, b) {
   switch (op) {
     case '+': return a + b; case '-': return a - b; case '*': return a * b; case '/': return a / b; case '%': return a % b;
-    case '&': return a & b; case '|': return a | b; case '^': return a ^ b; case '<<': return a << b; case '>>': return a >> b;
+    case '&': case '|': case '^': return bit(a, op, b); case '<<': return a << b; case '>>': return a >> b;
   }
   return b;
 }

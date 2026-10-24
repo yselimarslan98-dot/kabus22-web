@@ -106,7 +106,9 @@ export class EngineInput {
       const b = i => (p.buttons[i] ? p.buttons[i].pressed || p.buttons[i].value > 0.5 : false);
       // D-pad also steers, as on the original joystick hat.
       if (b(12)) y = -1; if (b(13)) y = 1; if (b(14)) x = -1; if (b(15)) x = 1;
-      G.joy_force[0] = x * 2; G.joy_force[1] = -y * 2;
+      // The scripts only walk on Key_Ileri==1 (full deflection), so past half way the stick counts as fully pushed.
+      const full = v => (Math.abs(v) > 0.5 ? Math.sign(v) : 0);
+      G.joy_force[0] = full(x) * 2; G.joy_force[1] = -full(y) * 2;
       G.joy_raw[0] = x * 255; G.joy_raw[1] = y * 255;
       // Right stick acts like the mouse (first-person camera).
       const rx = dz(p.axes[2] || 0), ry = dz(p.axes[3] || 0);
