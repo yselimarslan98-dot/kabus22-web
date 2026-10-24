@@ -15,7 +15,7 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '
 function manifest(dir, prefix = '', out = []) {
   for (const d of readdirSync(dir, { withFileTypes: true })) {
     const p = join(dir, d.name);
-    if (d.isDirectory()) { if (!/^(saves|video)$/i.test(d.name)) manifest(p, prefix + d.name + '/', out); }
+    if (d.isDirectory()) manifest(p, prefix + d.name + '/', out);
     else { const s = statSync(p); out.push({ path: prefix + d.name, size: s.size, mtime: Math.floor(s.mtimeMs) }); }
   }
   return out;

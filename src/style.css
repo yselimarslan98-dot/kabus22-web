@@ -48,3 +48,12 @@ button.primary:hover { background: var(--accent-2); }
 .keys th, .keys td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); }
 .keys th { color: var(--muted); font-weight: 500; }
 @media (max-width: 520px) { h1 { font-size: 32px; } .panel { padding: 20px 16px; } }
+
+/* script-driven game */
+#screen-play { background: #000; }
+#game-view, #game-ui { position: fixed; display: block; }
+#game-ui { z-index: 2; cursor: default; image-rendering: auto; }
+#game-log { position: fixed; z-index: 5; left: 8px; bottom: 8px; max-width: min(900px, 90vw); max-height: 40vh; overflow: auto;
+  margin: 0; padding: 8px 10px; background: rgba(0,0,0,.8); color: #f1c27d; font: 12px/1.35 ui-monospace, Consolas, monospace; border: 1px solid #333; }
+#game-hint { position: fixed; z-index: 4; right: 10px; bottom: 6px; opacity: .45; }
+button.big { font-size: 1.15rem; padding: .8em 2.2em; }

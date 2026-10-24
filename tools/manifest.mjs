@@ -9,7 +9,7 @@ if (!dir) { console.error('kullanım: node tools/manifest.mjs <oyun klasörü>')
 const out = [];
 (function walk(d, prefix) {
   for (const e of readdirSync(d, { withFileTypes: true })) {
-    if (e.isDirectory()) { if (!/^(saves|video)$/i.test(e.name)) walk(join(d, e.name), prefix + e.name + '/'); }
+    if (e.isDirectory()) walk(join(d, e.name), prefix + e.name + '/');
     else if (e.name !== 'manifest.json') {
       const s = statSync(join(d, e.name));
       out.push({ path: prefix + e.name, size: s.size, mtime: Math.floor(s.mtimeMs) });

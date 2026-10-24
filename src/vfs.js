@@ -47,8 +47,7 @@ export class GameFS {
       for await (const [name, h] of dir.entries()) {
         const path = prefix + name;
         if (h.kind === 'directory') {
-          // Saves and extracted videos are not needed; skipping keeps the walk quick.
-          if (!/^(saves|video)$/i.test(name)) await walk(h, path + '/');
+          await walk(h, path + '/');
         } else {
           files.set(path.toLowerCase(), await h.getFile());
         }

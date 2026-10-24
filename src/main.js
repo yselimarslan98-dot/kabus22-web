@@ -8,6 +8,7 @@ import { Input, PAD } from './engine/input.js';
 import { MenuNav } from './ui/menunav.js';
 import { buildEntities } from './engine/entities.js';
 import { actionHints } from './engine/actions.js';
+import { compileGame, Game } from './wdl/host/index.js';
 
 const $ = s => document.querySelector(s);
 const state = { fs: null, levels: [], current: null, paused: false, settings: { lang: 'tr', char: 'oyuncu_demir', mode: 'walk' } };
@@ -217,6 +218,7 @@ $('#dir-input').onchange = e => useFS(GameFS.fromFileList(e.target.files)).catch
   const params = new URLSearchParams(location.search);
   if (params.has('dev')) {
     await useFS(await GameFS.fromDevServer(), 'dev');
+    if (params.has('play')) { await playGame(); return; }
     const want = params.get('level');
     const lv = want && state.levels.find(l => l.id.toLowerCase() === want.toLowerCase());
     if (lv) await playLevel(lv);
@@ -268,6 +270,36 @@ for (const [sel, key] of [['#sel-lang', 'lang'], ['#sel-char', 'char'], ['#sel-m
     }
   };
 }
+
+// ---------- the game itself (WDL scripts) ----------
+let game = null;
+async function playGame() {
+  show('screen-loading');
+  progress('Kabus 22', 'Script motoru hazırlanıyor', 0.05);
+  await nextFrame();
+  const entry = state.fs.has('k22widescreen.wdl') ? 'K22Widescreen.wdl' : 'K22.wdl';
+  const t0 = performance.now();
+  const { compiled, warns } = await compileGame(state.fs, entry, msg => progress('Kabus 22', msg, 0.3));
+  console.info(`WDL: ${compiled.source.length} bayt JS, ${((performance.now() - t0) / 1000).toFixed(1)} sn`, warns);
+  progress('Kabus 22', 'Başlatılıyor', 0.8);
+  const view = $('#game-view');
+  const gr = new THREE.WebGLRenderer({ canvas: view, antialias: true, powerPreference: 'high-performance' });
+  gr.setPixelRatio(Math.min(devicePixelRatio, 2));
+  gr.outputColorSpace = THREE.SRGBColorSpace;
+  const gscene = new THREE.Scene();
+  gscene.background = new THREE.Color(0);
+  const logEl = $('#game-log');
+  game = new Game({
+    fs: state.fs, renderer: gr, scene: gscene, uiCanvas: $('#game-ui'),
+    onLog: m => { logEl.textContent += m + '\n'; logEl.scrollTop = logEl.scrollHeight; },
+    onExit: () => { game?.stop(); game = null; show('screen-menu'); },
+  });
+  window.k22.game = game;
+  show('screen-play');
+  await game.start(compiled, msg => progress('Kabus 22', msg, 0.9));
+}
+addEventListener('keydown', e => { if (e.code === 'F9' && game) { $('#game-log').hidden = !$('#game-log').hidden; e.preventDefault(); } });
+$('#btn-play').onclick = () => playGame().catch(fail);
 
 $('#btn-continue').onclick = () => { setPaused(false); lockPointer(); };
 $('#btn-mode').onclick = () => {

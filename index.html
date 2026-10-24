@@ -69,12 +69,22 @@
         </select>
       </label>
     </div>
-    <h3>Bölümler</h3>
+    <div class="buttons">
+      <button id="btn-play" class="primary big" data-nav>Oyunu başlat</button>
+    </div>
+    <p class="fine">Oyunun kendi script'leriyle çalışır: menüler, sesler, bölümler ve oyun mantığı. Motor hâlâ geliştiriliyor; eksik kalan yerler olabilir.</p>
+    <h3>Bölüm gezgini</h3>
     <ol id="level-list" class="levels"></ol>
     <p class="fine" id="pad-status">Kumanda bağlı değil. Bağlayıp bir tuşa bas.</p>
   </div>
 </section>
 
+<section id="screen-play" class="screen">
+  <canvas id="game-view"></canvas>
+  <canvas id="game-ui"></canvas>
+  <pre id="game-log" hidden></pre>
+  <div id="game-hint" class="fine">F9: motor günlüğü</div>
+</section>
 <section id="screen-game" class="screen">
   <canvas id="view"></canvas>
   <div id="hud">

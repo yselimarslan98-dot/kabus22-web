@@ -1,0 +1,132 @@
+// snd_* and media_* on WebAudio. Handles are numbers, like the engine's.
+import { Ref, Str } from '../runtime.js';
+
+const val = v => (v instanceof Ref ? v.get(0) : typeof v === 'number' ? v : +v || 0);
+const text = v => (v instanceof Str ? v.s : v == null || v === 0 ? '' : typeof v === 'object' ? (v.file ?? '') : String(v));
+
+export class EngineAudio {
+  constructor(R, fs) {
+    this.R = R;
+    this.fs = fs;
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    this.master = this.ctx.createGain();
+    this.master.connect(this.ctx.destination);
+    this.buffers = new Map();
+    this.handles = new Map();
+    this.next = 1;
+    this.media = new Map();
+    const G = R.G, B = R.B;
+    G.sound_vol ??= 100; G.midi_vol ??= 100; G.media_handle = 0;
+
+    B.snd_play = (c, snd, vol, bal) => this.play(snd, vol, bal, false);
+    B.snd_loop = (c, snd, vol, bal) => this.play(snd, vol, bal, true);
+    B.snd_stop = (c, h) => { this.stop(val(h)); return 0; };
+    B.snd_playing = (c, h) => { const s = this.handles.get(val(h)); return s && !s.ended ? 1 : 0; };
+    B.snd_tune = (c, h, vol, freq, bal) => { this.tune(this.handles.get(val(h)), vol, freq, bal); return 0; };
+    B.snd_stopall = () => { for (const h of [...this.handles.keys()]) this.stop(h); return 0; };
+    B.snd_pause = (c, h) => { this.stop(val(h)); return 0; };
+
+    B.media_play = (c, file, target, vol) => this.mediaPlay(file, vol, false);
+    B.media_loop = (c, file, target, vol) => this.mediaPlay(file, vol, true);
+    B.media_stop = (c, h) => {
+      h = val(h);
+      for (const [k, m] of this.media) if (!h || k === h) { m.stop(); this.media.delete(k); }
+      return 0;
+    };
+    B.media_playing = (c, h) => { const m = this.media.get(val(h)); return m && !m.ended ? 1 : 0; };
+    B.media_tune = (c, h, vol) => { const m = this.media.get(val(h)); if (m && m.el) m.el.volume = clamp01(val(vol) / 100); return 0; };
+    B.media_pause = (c, h) => { this.media.get(val(h))?.el?.pause(); return 0; };
+    B.media_start = (c, h) => { this.media.get(val(h))?.el?.play().catch(() => {}); return 0; };
+  }
+
+  resume() { if (this.ctx.state === 'suspended') this.ctx.resume(); }
+
+  buffer(file) {
+    const key = file.toLowerCase();
+    let p = this.buffers.get(key);
+    if (!p) {
+      p = (async () => {
+        const name = this.fs.resolve(key) || this.fs.resolve(key.split(/[\\/]/).pop());
+        if (!name) throw new Error('ses bulunamadı: ' + file);
+        const bytes = await this.fs.read(name);
+        return this.ctx.decodeAudioData(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+      })();
+      p.catch(e => this.R.warnOnce(e.message));
+      this.buffers.set(key, p);
+    }
+    return p;
+  }
+
+  play(snd, vol, bal, loop) {
+    const file = text(snd);
+    if (!file) return 0;
+    const h = this.next++;
+    const s = { ended: false, loop, src: null, gain: this.ctx.createGain(), pan: this.ctx.createStereoPanner(), rate: 1 };
+    s.gain.connect(s.pan).connect(this.master);
+    this.tune(s, vol, 0, bal);
+    this.handles.set(h, s);
+    this.buffer(file).then(buf => {
+      if (s.ended) return;
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = loop;
+      src.playbackRate.value = s.rate;
+      src.connect(s.gain);
+      src.onended = () => { s.ended = true; this.handles.delete(h); };
+      src.start();
+      s.src = src;
+    }, () => { s.ended = true; this.handles.delete(h); });
+    return h;
+  }
+
+  tune(s, vol, freq, bal) {
+    if (!s) return;
+    const sv = (this.R.G.sound_vol ?? 100) / 100;
+    s.gain.gain.value = Math.max(0, val(vol) / 100) * sv;
+    s.pan.pan.value = Math.max(-1, Math.min(1, val(bal) / 100));
+    if (val(freq) > 0) { s.rate = val(freq) / 100; if (s.src) s.src.playbackRate.value = s.rate; }
+  }
+
+  stop(h) {
+    const s = this.handles.get(h);
+    if (!s) return;
+    s.ended = true;
+    try { s.src?.stop(); } catch {}
+    s.gain.disconnect();
+    this.handles.delete(h);
+  }
+
+  // Music and videos. Audio files stream through an <audio> element; AVI videos are not playable
+  // in browsers, so they end at once (the scripts then continue as after the video).
+  mediaPlay(file, vol, loop) {
+    const name = text(file);
+    const h = this.next++;
+    const m = { ended: false, el: null, stop() { this.ended = true; if (this.el) { this.el.pause(); URL.revokeObjectURL(this.el.src); } } };
+    this.media.set(h, m);
+    this.R.G.media_handle = h;
+    const resolved = this.fs.resolve(name) || this.fs.resolve(name.split(/[\\/]/).pop());
+    if (!resolved || !/\.(ogg|wav|mp3)$/i.test(resolved)) {
+      this.R.warnOnce('oynatılamayan medya (video henüz desteklenmiyor): ' + name);
+      m.ended = true;
+      return h;
+    }
+    this.fs.read(resolved).then(bytes => {
+      if (m.ended) return;
+      const el = new Audio(URL.createObjectURL(new Blob([bytes])));
+      el.loop = loop;
+      el.volume = clamp01(val(vol) / 100);
+      el.onended = () => { if (!loop) m.ended = true; };
+      m.el = el;
+      el.play().catch(() => { m.ended = true; });
+    }, () => { m.ended = true; });
+    return h;
+  }
+
+  dispose() {
+    for (const h of [...this.handles.keys()]) this.stop(h);
+    for (const m of this.media.values()) m.stop();
+    this.ctx.close();
+  }
+}
+
+const clamp01 = v => Math.max(0, Math.min(1, v));
