@@ -82,7 +82,9 @@ export function compile(prog) {
   function compileFunction(f) {
     const locals = new Map();    // name -> { array }
     const params = new Map(f.params.map((p, i) => [p, i]));
-    const vecP = vecParams.get(f.name);
+    const vecP = vecParams.get(f.name) || new Set();
+    let temps = 0;
+    const writeback = [];
     let hasLabels = false;
     (function find(n) {
       if (!n || typeof n !== 'object') return;
@@ -182,7 +184,25 @@ export function compile(prog) {
       }
       if (e.k === 'idx') return `R.ref(${ex(e.o)}, ${ex(e.i)})`;
       if (e.k === 'id' && isArrayName(e.v)) return `R.ref(${idRef(e.v)}, 0)`;
+      if (e.k === 'id') {
+        const pi = f.params.indexOf(e.v);
+        // A scalar passed where a vector is expected: the engine writes its first component into it
+        // (vec_to_angle(angle_var, dir)). Locals go through a temporary box written back after the call.
+        if ((locals.has(e.v) || (pi >= 0 && !vecP.has(pi)))) {
+          const box = `$$b${temps++}`;
+          writeback.push(`${loc(e.v)} = ${box}[0]`);
+          return `(${box} = [${loc(e.v)}, 0, 0], R.ref(${box}, 0))`;
+        }
+        if (!params.has(e.v) && globals.get(e.v)?.kind?.startsWith('var')) return `R.ref(G, ${jsStr(e.v)})`;
+      }
       return ex(e);
+    }
+    // Wraps a call so boxed scalar arguments are written back: (r = call, a = box[0], r)
+    function withWriteback(code, before) {
+      const wb = writeback.splice(before);
+      if (!wb.length) return code;
+      const r = `$$b${temps++}`;
+      return `(${r} = ${code}, ${wb.join(', ')}, ${r})`;
     }
 
     function call(e) {
@@ -196,15 +216,16 @@ export function compile(prog) {
         return `(yield ${a})`;
       }
       if (isFunc(name)) {
-        const vp = vecParams.get(name);
-        return `R.call(F[${jsStr(name)}], ctx, [${args.map((a, i) => (vp.has(i) ? ref(a) : ex(a))).join(', ')}])`;
+        const vp = vecParams.get(name), mark = writeback.length;
+        return withWriteback(`R.call(F[${jsStr(name)}], ctx, [${args.map((a, i) => (vp.has(i) ? ref(a) : ex(a))).join(', ')}])`, mark);
       }
       if (locals.has(name) || params.has(name) || (globals.has(name) && !prog.dll.has(name))) {
         return `R.callPtr(${idRef(name)}, ctx, [${args.map(ex).join(', ')}])`;
       }
       const slots = VEC_SLOTS[name] || [];
       if (!calledBuiltins.has(name)) calledBuiltins.set(name, `${e.f.file ?? f.file}:${e.f.line ?? f.line}`);
-      return `B[${jsStr(name)}](ctx${args.map((a, i) => ', ' + (slots.includes(i) ? ref(a) : ex(a))).join('')})`;
+      const mark = writeback.length;
+      return withWriteback(`B[${jsStr(name)}](ctx${args.map((a, i) => ', ' + (slots.includes(i) ? ref(a) : ex(a))).join('')})`, mark);
     }
 
     const GUARD = 'if (++R.L > 200000) R.runaway();';
@@ -290,8 +311,9 @@ export function compile(prog) {
     }
 
     const ps = f.params.map(loc);
-    const decl = [...locals.keys()].filter(n => !params.has(n)).map(n => `${loc(n)} = 0`);
     const body = hasLabels ? lowered(f.body) : st(f.body, 1) + '  return 0;\n';
+    const decl = [...locals.keys()].filter(n => !params.has(n)).map(n => `${loc(n)} = 0`);
+    for (let t = 0; t < temps; t++) decl.push(`$$b${t}`);
     return `F[${jsStr(f.name)}] = function* w_${loc(f.name).slice(1)}(ctx${ps.map(p => ', ' + p).join('')}) {\n` +
       (decl.length ? `  let ${decl.join(', ')};\n` : '') + body + '};\n';
   }

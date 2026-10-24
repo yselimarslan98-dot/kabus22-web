@@ -13,6 +13,7 @@ for (const t of [['x', 'y', 'z'], ['pan', 'tilt', 'roll'], ['scale_x', 'scale_y'
 }
 const DEG = Math.PI / 180;
 export const TICK = 1 / 16;   // engine time unit: 1 tick = 1/16 second
+const IS_GLOBALS = Symbol('globals');
 
 // Reference to a value inside a container: array element or object field.
 export class Ref {
@@ -21,6 +22,8 @@ export class Ref {
     if (Array.isArray(this.c) || ArrayBuffer.isView(this.c)) return this.k + i;
     if (i === 0) return this.k;
     if (TRIPLE[this.k]) return TRIPLE[this.k][i];
+    if (this.c[IS_GLOBALS]) return `${this.k}#${i}`;     // a scalar global used as a vector
+    if (this.c.kind === 'entity' && !/^skill\d+$/.test(this.k)) return `${this.k}#${i}`;
     const m = /^(.*?)(\d+)$/.exec(this.k);          // skill5 -> skill6, skill7
     return m ? m[1] + (+m[2] + i) : this.k + i;
   }
@@ -40,6 +43,7 @@ export class Runtime {
   constructor(host = {}) {
     this.host = host;
     this.G = Object.create(null);
+    Object.defineProperty(this.G, IS_GLOBALS, { value: true });
     this.F = Object.create(null);
     this.B = Object.create(null);
     this.tasks = [];
@@ -117,7 +121,9 @@ export class Runtime {
     this.frameNo++;
     this.now += dt;
     const G = this.G;
-    G.time_step = G.time = Math.min(dt / TICK, 16 * (G.time_smooth_max || 1)) * (G.time_factor ?? 1);
+    // Below fps_min the engine slows the game down instead of taking bigger steps.
+    const cap = +G.fps_min > 0 ? 16 / +G.fps_min : 16;
+    G.time_step = G.time = Math.min(dt / TICK, cap) * (G.time_factor ?? 1);
     G.total_ticks += dt / TICK;
     G.total_frames = this.frameNo;
     const list = this.tasks;

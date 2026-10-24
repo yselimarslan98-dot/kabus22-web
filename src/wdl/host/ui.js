@@ -56,6 +56,8 @@ export class UI {
   define(obj, props) {
     obj.buttons = []; obj.digits = []; obj.windows = []; obj.sliders = [];
     for (const [key, thunk] of props) {
+      // digits point at variables that may not exist yet (player.skill27): resolved at draw time
+      if (key === 'digits') { obj.digits.push({ thunk }); continue; }
       let v;
       try { v = thunk(); } catch (e) { this.R.warn(`${obj.name}.${key}: ${e.message}`); continue; }
       switch (key) {
@@ -70,11 +72,6 @@ export class UI {
         case 'button': {
           const [x, y, on, off, over, click, leave, overFn] = v;
           obj.buttons.push({ x: val(x), y: val(y), on, off, over, click, leave, overFn });
-          break;
-        }
-        case 'digits': {
-          const [x, y, fmt, font, factor, ref] = v;
-          obj.digits.push({ x: val(x), y: val(y), fmt, font, factor: val(factor) || 1, ref });
           break;
         }
         case 'window': {
@@ -157,7 +154,12 @@ export class UI {
       const state = this.pressed?.panel === p && this.pressed.i === i ? b.on : this.hover?.panel === p && this.hover.i === i ? (b.over || b.off) : b.off;
       this.drawBmap(state, px + b.x * sx, py + b.y * sy, sx, sy);
     });
-    for (const d of p.digits) {
+    for (const dd of p.digits) {
+      let d;
+      try {
+        const [x, y, fmt, font, factor, ref] = dd.thunk();
+        d = { x: val(x), y: val(y), fmt, font, factor: val(factor) || 1, ref };
+      } catch { continue; }
       const f = this.font(d.font, sy);
       g.font = f.css;
       g.fillStyle = 'white';
