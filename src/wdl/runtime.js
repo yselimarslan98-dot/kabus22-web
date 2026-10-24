@@ -338,7 +338,8 @@ function installCore(R) {
     str_len: (c, s) => text(s).length,
     str_clip: (c, s, k) => { if (s instanceof Str) s.s = s.s.slice(Math.max(0, n(k))); return s; },
     str_trunc: (c, s, k) => { if (s instanceof Str) s.s = s.s.slice(0, Math.max(0, s.s.length - n(k))); return s; },
-    str_for_num: (c, s, v) => { if (s instanceof Str) s.s = (+n(v)).toFixed(3); return s; },
+    // Whole numbers print without decimals: the game relies on that for save names and dates ("kayit3.sav", "05.10.26").
+    str_for_num: (c, s, v) => { if (s instanceof Str) { const x = +n(v); s.s = Number.isInteger(x) ? String(x) : x.toFixed(3); } return s; },
     str_to_num: (c, s) => parseFloat(text(s)) || 0,
     str_stri: (c, s, sub) => text(s).toLowerCase().indexOf(text(sub).toLowerCase()) + 1,
     str_create: (c, s) => new Str(text(s)),

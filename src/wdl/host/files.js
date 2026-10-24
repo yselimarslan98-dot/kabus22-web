@@ -6,7 +6,10 @@ import { idbGet, idbSet } from '../../idb.js';
 const val = v => (v instanceof Ref ? v.get(0) : typeof v === 'number' ? v : +v || 0);
 const text = v => (v instanceof Str ? v.s : v == null || v === 0 ? '' : String(v));
 const norm = n => text(n).trim().toLowerCase().replace(/\\/g, '/').replace(/\/{2,}/g, '/').replace(/^\.?\//, '');
-const enc = new TextEncoder(), dec = new TextDecoder('windows-1254');
+const dec = new TextDecoder('windows-1254');
+// The game reads its files back as Windows-1254, so strings are written in that code page too.
+const cp1254 = new Map([...dec.decode(Uint8Array.from({ length: 256 }, (_, i) => i))].map((ch, i) => [ch, i]));
+const encode = s => Array.from(s, ch => cp1254.get(ch) ?? 63);
 
 export class EngineFiles {
   constructor(R, fs) {
@@ -83,7 +86,7 @@ export class EngineFiles {
     this.open.set(h, { name: norm(name), bytes: new Uint8Array(), pos: 0, out: prev ? [...prev] : [], write: true });
     return h;
   }
-  write(h, s) { const f = this.open.get(h); if (f?.out) for (const b of enc.encode(s)) f.out.push(b); }
+  write(h, s) { const f = this.open.get(h); if (f?.out) for (const b of encode(s)) f.out.push(b); }
   close(h) {
     const f = this.open.get(h);
     this.open.delete(h);
