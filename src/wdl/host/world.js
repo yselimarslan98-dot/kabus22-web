@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { MeshBVH } from 'three-mesh-bvh';
 import { parseWmb6, SURFACE } from '../../formats/wmb6.js';
 import { parseMdl, animations } from '../../formats/mdl.js';
+import { parseHmp } from '../../formats/hmp.js';
 import { decodeImage } from '../../formats/image.js';
 import { buildLevel } from '../../engine/level.js';
 import { Ref, Str, rotate, vec } from '../runtime.js';
@@ -88,6 +89,7 @@ export class World {
     this.viewScene = new THREE.Scene();
     this.viewScene.add(new THREE.AmbientLight(0xffffff, 1.5));
     this.viewEnts = new Set();
+    this.terrains = [];          // HMP terrain colliders (world space)
     this.install();
   }
 
@@ -112,8 +114,8 @@ export class World {
     const name = this.resolve(key);
     if (!name) throw new Error('bulunamadı');
     const bytes = await this.fs.read(name);
-    if (/\.mdl$/i.test(name)) {
-      const m = parseMdl(bytes);
+    if (/\.(mdl|hmp)$/i.test(name)) {
+      const m = /\.hmp$/i.test(name) ? parseHmp(bytes) : parseMdl(bytes);
       const skins = m.skins.map(s => (s.data ? dataTexture(s) : null));
       const anims = animations(m);
       // first welded vertex for every original vertex (vertex queries use original numbering)
@@ -212,6 +214,16 @@ export class World {
       const b = built.bounds;
       if (!e._boxSet) { e.min_x = b.min.x; e.max_x = b.max.x; e.min_y = -b.max.z; e.max_y = -b.min.z; e.min_z = b.min.y; e.max_z = b.max.y; }
     }
+    if (r.kind === 'model' && r.m.terrain && !e._view) {
+      S(e.x, e.y, e.z, obj.position);
+      obj.rotation.set(e.roll * DEG, e.pan * DEG, e.tilt * DEG, 'YZX');
+      obj.scale.set(e.scale_x || 1, e.scale_z || 1, e.scale_y || 1);
+      obj.updateMatrixWorld(true);
+      const geo = obj.geometry.clone().applyMatrix4(obj.matrixWorld);
+      geo.boundsTree = new MeshBVH(geo);
+      geo.userData = { ent: e };
+      this.terrains.push(geo);
+    }
     obj.userData.ent = e;
     obj.matrixAutoUpdate = true;
     e._obj = obj;
@@ -241,6 +253,7 @@ export class World {
       for (const e of [...this.ents]) this.remove(e);
       for (const p of this.particles) p.sprite && this.root.remove(p.sprite);
       this.particles = []; this.emits = [];
+      this.terrains = [];
       if (this.level) { this.root.remove(this.level.root); this.level.dispose(); this.level.collider?.dispose(); this.level = null; }
       if (!name) { R.warn('bölüm bulunamadı: ' + text(file)); return; }
       const lv = parseWmb6(await this.fs.read(name));
@@ -550,7 +563,7 @@ export class World {
         box.makeEmpty().expandByPoint(seg.start).expandByPoint(seg.end);
         box.min.addScalar(-r); box.max.addScalar(r);
         let pushed = false;
-        this.level.collider.boundsTree.shapecast({
+        for (const col of [this.level.collider, ...this.terrains]) col.boundsTree.shapecast({
           intersectsBounds: b => b.intersectsBox(box),
           intersectsTriangle: t => {
             const dist = t.closestPointToSegment(seg, tri, cap);
@@ -574,7 +587,7 @@ export class World {
       // entity boxes
       if (!(mode & MODE.ignore_models && mode & MODE.ignore_sprites)) {
         for (const o of this.ents) {
-          if (o === e || o.passable || o.invisible || !o._res) continue;
+          if (o === e || o.passable || o.invisible || !o._res || o._res.m?.terrain) continue;
           if (o === ctx.you && (mode & MODE.ignore_you)) continue;
           if (o._res.kind === 'model' && (mode & MODE.ignore_models)) continue;
           if (o._res.kind === 'sprite' && (mode & MODE.ignore_sprites)) continue;
