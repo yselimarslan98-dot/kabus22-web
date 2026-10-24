@@ -327,7 +327,7 @@ export function compile(prog) {
     const ps = f.params.map(loc);
     const body = hasLabels ? lowered(f.body) : st(f.body, 1) + '  return 0;\n';
     const decl = [...locals.keys()].filter(n => !params.has(n)).map(n => `${loc(n)} = 0`);
-    for (let t = 0; t < temps; t++) decl.push(`$b${t}`);
+    for (let t = 0; t < temps; t++) decl.push(`$$b${t}`);
     for (const n of companions) decl.push(`${loc(n)}$v = [0, 0, 0]`);
     return `F[${jsStr(f.name)}] = function* w_${loc(f.name).slice(1)}(ctx${ps.map(p => ', ' + p).join('')}) {\n` +
       (decl.length ? `  let ${decl.join(', ')};\n` : '') + body + '};\n';
