@@ -45,6 +45,13 @@ export class EngineAudio {
     B.media_start = (c, h) => { this.media.get(val(h))?.el?.play().catch(() => {}); return 0; };
   }
 
+  // media_layer of the video on screen: panels below it are covered by the video.
+  videoLayerOf() {
+    let layer = Infinity;
+    for (const m of this.media.values()) if (m.video && m.el && !m.ended) layer = Math.min(layer, m.layer);
+    return layer;
+  }
+
   resume() { if (this.ctx.state === 'suspended') this.ctx.resume(); }
 
   buffer(file) {
@@ -107,7 +114,7 @@ export class EngineAudio {
   mediaPlay(file, vol, loop) {
     const name = text(file);
     const h = this.next++;
-    const m = { ended: false, el: null, stop() { this.ended = true; if (this.el) { this.el.pause(); this.el.remove(); URL.revokeObjectURL(this.el.src); } } };
+    const m = { ended: false, el: null, layer: val(this.R.G.media_layer), stop() { this.ended = true; if (this.el) { this.el.pause(); this.el.remove(); URL.revokeObjectURL(this.el.src); } } };
     this.media.set(h, m);
     this.R.G.media_handle = h;
     const resolved = this.fs.resolve(name) || this.fs.resolve(name.split(/[\\/]/).pop());

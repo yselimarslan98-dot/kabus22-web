@@ -41,7 +41,8 @@ export class Game {
       exit: onExit,
     });
     this.images = new Images(fs);
-    this.ui = new UI(R, uiCanvas, this.images);
+    this.underCanvas = document.getElementById('game-ui-under');
+    this.ui = new UI(R, uiCanvas, this.images, this.underCanvas);
     this.files = new EngineFiles(R, fs);
     this.audio = new EngineAudio(R, fs);
     this.video = new VideoConverter(fs);
@@ -135,8 +136,7 @@ export class Game {
     this.size = [w, h];
     const G = this.R.G;
     G.screen_size = [w, h, 0];
-    this.uiCanvas.width = w;
-    this.uiCanvas.height = h;
+    for (const c of [this.uiCanvas, this.underCanvas].filter(Boolean)) { c.width = w; c.height = h; }
     const cam = G.camera;
     if (cam) { cam.size_x = w; cam.size_y = h; }
     this.layout();
@@ -147,7 +147,7 @@ export class Game {
     const [w, h] = this.size;
     const s = Math.min(innerWidth / w, innerHeight / h);
     const cw = Math.round(w * s), ch = Math.round(h * s);
-    for (const el of [this.uiCanvas, this.renderer.domElement, this.audio.videoLayer].filter(Boolean)) {
+    for (const el of [this.uiCanvas, this.underCanvas, this.renderer.domElement, this.audio.videoLayer].filter(Boolean)) {
       Object.assign(el.style, { width: cw + 'px', height: ch + 'px', left: ((innerWidth - cw) / 2) + 'px', top: ((innerHeight - ch) / 2) + 'px', position: 'fixed' });
     }
     this.renderer.setSize(cw, ch, false);
@@ -201,7 +201,7 @@ export class Game {
     const [mx, my] = R.G.mouse_pos;
     this.ui.pointer(mx, my, false, false);
     if (!R.paused) R.frame(dt);
-    for (const step of [() => this.world.update(dt), () => this.world.render(this.views, this.size), () => this.ui.draw()]) {
+    for (const step of [() => this.world.update(dt), () => this.world.render(this.views, this.size), () => this.ui.draw(this.audio.videoLayerOf())]) {
       try { step(); } catch (e) { R.warnOnce('motor hatası: ' + e.message); console.error(e); }
     }
   }

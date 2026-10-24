@@ -20,7 +20,7 @@ dosyalar doğrudan bilgisayarından, sadece gerektiği kadar okunur. İndirme yo
 | Ses (OGG/WAV, 3D ses) | ✅ snd_*/media_* WebAudio üzerinde; 3D denge oyunun kendi hesabıyla |
 | WDL (C-Script) derleyici + çalışma zamanı | ✅ oyunun 106 bin satırlık script'i JS'e derleniyor (0 hata); açılış, ana menü, giriş hikâyesi ve ilk bölüm oyunun kendi koduyla çalışıyor |
 | Motor fonksiyonları | ✅ paneller/yazılar, ses (snd_*/media_*), dosyalar (kayıtlar IndexedDB'de), klavye/fare/kumanda, level_load, ent_move/trace/scan, animasyon, parçacıklar · ⏳ eksikler test edildikçe |
-| Ara sahne videoları (WMV2/WMV3) | ✅ ilk oynatmada tarayıcıda ffmpeg.wasm ile MP4'e çevrilip IndexedDB'de saklanıyor; altyazılar kare numarasıyla |
+| Ara sahne videoları (WMV2/WMV3) | ✅ ilk oynatmada tarayıcıda ffmpeg.wasm ile MP4'e çevrilip IndexedDB'de saklanıyor; altyazılar kare numarasıyla (25 kare/sn, karargâh videosunda doğrulandı); media_layer'ın altındaki paneller videonun arkasında kalır |
 
 ## Oynamak
 

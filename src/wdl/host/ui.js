@@ -55,9 +55,10 @@ export class Images {
 }
 
 export class UI {
-  constructor(R, canvas, images) {
+  constructor(R, canvas, images, under = null) {
     this.R = R;
     this.canvas = canvas;
+    this.under = under?.getContext('2d') ?? null;
     this.ctx = canvas.getContext('2d');
     this.images = images;
     this.items = [];          // panels and texts in creation order
@@ -138,20 +139,23 @@ export class UI {
     return { css: `${style}${Math.max(6, size * sy)}px "${family}", Arial, sans-serif`, size: size * sy };
   }
 
-  // Draw all visible items sorted by layer.
-  draw() {
-    const g = this.ctx, R = this.R;
-    g.setTransform(1, 0, 0, 1, 0, 0);
-    g.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  // Draw all visible items sorted by layer. Items below videoLayer go to the canvas under the video.
+  draw(videoLayer = Infinity) {
+    const top = this.ctx;
+    for (const g of [top, this.under].filter(Boolean)) {
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    }
     const list = this.items.filter(o => o.visible).sort((a, b) => (val(a.layer) - val(b.layer)) || (a._order - b._order));
     for (const o of list) {
+      const g = this.ctx = this.under && val(o.layer) < videoLayer ? this.under : top;
       g.globalAlpha = o.transparent ? Math.max(0, Math.min(1, val(o.alpha ?? 50) / 100)) : 1;
       if (g.globalAlpha <= 0) continue;
       if (o.kind === 'panel') this.drawPanel(o);
       else if (o.kind === 'text') this.drawText(o);
+      g.globalAlpha = 1;
     }
-    g.globalAlpha = 1;
-    void R;
+    this.ctx = top;
   }
 
   drawPanel(p) {
@@ -216,7 +220,8 @@ export class UI {
     const x = val(t.pos_x);
     const shadow = t.shadow || (val(t.flags) & FLAGS.shadow) || t.outline;
     const clipH = val(t.size_y) ? val(t.size_y) * sy : 0;
-    if (clipH) { g.save(); g.beginPath(); g.rect(0, val(t.pos_y), this.canvas.width, clipH); g.clip(); }
+    // A vertically centered text is clipped to a box centered on pos_y as well.
+    if (clipH) { g.save(); g.beginPath(); g.rect(0, val(t.pos_y) - (cy ? clipH / 2 : 0), this.canvas.width, clipH); g.clip(); }
     for (const line of lines) {
       if (shadow) { const c = g.fillStyle; g.fillStyle = 'black'; g.fillText(line, x + 1, y + 1); g.fillStyle = c; }
       g.fillText(line, x, y);
