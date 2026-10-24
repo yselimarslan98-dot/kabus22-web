@@ -302,6 +302,19 @@ async function playGame() {
   if (fast && local) game.speed = +fast;
   // Development: ?keys=ArrowUp@30000-33000,Enter@9000 holds keys at given times (ms after start).
   const keys = new URLSearchParams(location.search).get('keys');
+  // Development: ?call=levelyukle:5@40000 calls a script function with numeric args at a time (ms).
+  const calls = new URLSearchParams(location.search).get('call');
+  if (calls && local) {
+    for (const c of calls.split(',')) {
+      const [, fn, args, at] = /^(\w+)(?::([\d.;-]+))?@(\d+)$/.exec(c) || [];
+      if (!fn) continue;
+      setTimeout(() => {
+        const f = game.R.F[fn.toLowerCase()];
+        console.warn(`[dev] ${fn}(${args || ''})`, f ? '' : 'yok');
+        if (f) game.R.call(f, { me: 0, you: 0 }, (args || '').split(';').filter(Boolean).map(Number));
+      }, +at);
+    }
+  }
   if (keys && local) {
     for (const k of keys.split(',')) {
       const [, code, a, b] = /^(\w+)@(\d+)(?:-(\d+))?$/.exec(k) || [];

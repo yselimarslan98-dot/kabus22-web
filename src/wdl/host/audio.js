@@ -33,7 +33,13 @@ export class EngineAudio {
       for (const [k, m] of this.media) if (!h || k === h) { m.stop(); this.media.delete(k); }
       return 0;
     };
-    B.media_playing = (c, h) => { const m = this.media.get(val(h)); return m && !m.ended ? 1 : 0; };
+    // For videos the engine returns the current frame number; the scripts time subtitles with it.
+    B.media_playing = (c, h) => {
+      const m = this.media.get(val(h));
+      if (!m || m.ended) return 0;
+      if (m.video && m.el) return Math.floor(m.el.currentTime * 25) + 1;
+      return 1;
+    };
     B.media_tune = (c, h, vol) => { const m = this.media.get(val(h)); if (m && m.el) m.el.volume = clamp01(val(vol) / 100); return 0; };
     B.media_pause = (c, h) => { this.media.get(val(h))?.el?.pause(); return 0; };
     B.media_start = (c, h) => { this.media.get(val(h))?.el?.play().catch(() => {}); return 0; };

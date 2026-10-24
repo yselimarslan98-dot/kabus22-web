@@ -224,12 +224,14 @@ export class World {
       if (e._res?.kind === 'model') { e._obj.geometry.dispose(); e._obj.material.dispose(); }
       e._obj = null;
     }
+    if (e._shadow) { this.root.remove(e._shadow); e._shadow = null; }
   }
 
   // ---------- level ----------
   levelLoad(file) {
     const R = this.R;
     const name = this.resolve(file);
+    R.host.onInfo?.(`level_load: ${text(file)}`);
     R.paused = true;               // the engine loads levels synchronously: nothing runs meanwhile
     this.loading = (async () => {
       for (const e of [...this.ents]) this.remove(e);
@@ -311,6 +313,7 @@ export class World {
       e._lightAt = [e.x, e.y, e.z];
       e._light = this.sampleLight(e.x, e.y, e.z + (e.max_z > 0 ? 8 : 0));
     }
+    this.syncShadow(e);
     const amb = val(e.ambient) / 100;
     if (e.unlit || e.bright) m.emissive.setRGB(1, 1, 1);
     else m.emissive.copy(e._light).addScalar(amb * 0.5);
@@ -327,6 +330,36 @@ export class World {
     m.blending = e.bright || e.flare ? THREE.AdditiveBlending : THREE.NormalBlending;
     m.depthWrite = !(e.bright || e.flare);
     void r;
+  }
+
+  // Soft blob shadow on the floor under models with the SHADOW flag.
+  syncShadow(e) {
+    if (!e.shadow || e.invisible || !this.level) { if (e._shadow) e._shadow.visible = false; return; }
+    if (!e._shadow) {
+      if (!this.shadowMat) {
+        const c = document.createElement('canvas');
+        c.width = c.height = 64;
+        const g = c.getContext('2d'), grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+        grad.addColorStop(0, 'rgba(0,0,0,0.6)'); grad.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = grad; g.fillRect(0, 0, 64, 64);
+        this.shadowMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+        this.shadowGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+      }
+      e._shadow = new THREE.Mesh(this.shadowGeo, this.shadowMat);
+      e._shadow.renderOrder = 1;
+      this.root.add(e._shadow);
+    }
+    const s = e._shadow;
+    if (!e._shadowAt || Math.abs(e._shadowAt[0] - e.x) + Math.abs(e._shadowAt[1] - e.y) + Math.abs(e._shadowAt[2] - e.z) > 2) {
+      e._shadowAt = [e.x, e.y, e.z];
+      const ray = new THREE.Ray(S(e.x, e.y, e.z + 4), new THREE.Vector3(0, -1, 0));
+      const hit = this.level.collider.boundsTree.raycastFirst(ray, THREE.DoubleSide);
+      const drop = hit ? hit.distance : Infinity;
+      s.visible = drop < 400;
+      if (s.visible) { s.position.copy(hit.point); s.position.y += 0.5; }
+      const size = Math.max(16, (e.max_x - e.min_x + e.max_y - e.min_y) * 0.6);
+      s.scale.set(size, 1, size);
+    }
   }
 
   sampleLight(x, y, z) {
@@ -493,7 +526,10 @@ export class World {
   moveEnt(e, d, mode, ctx) {
     const len = Math.hypot(d[0], d[1], d[2]);
     if (len < 1e-6) return 0;
-    const r = Math.max(4, Math.min(64, Math.max(-e.min_x, e.max_x, -e.min_y, e.max_y) * 0.8));
+    // Collision radius from the bounding box; the narrow / fat hull flags of A6 clamp it.
+    let r = Math.max(4, Math.min(64, Math.max(-e.min_x, e.max_x, -e.min_y, e.max_y) * 0.8));
+    if (e.narrow) r = Math.min(r, 14);
+    else if (e.fat) r = Math.max(r, 24);
     const zlo = e.min_z, zhi = e.max_z;
     const steps = Math.max(1, Math.ceil(len / (r * 0.5)));
     const sx = d[0] / steps, sy = d[1] / steps, sz = d[2] / steps;
@@ -631,7 +667,11 @@ export class World {
       r.setScissor(x * sx, (size[1] - y - h) * sy, w * sx, h * sy);
       r.setScissorTest(true);
       r.clearDepth();
+      // view.genius: that entity is not drawn in this view (first-person cameras)
+      const hide = v.genius && v.genius._obj && v.genius._obj.visible ? v.genius._obj : null;
+      if (hide) hide.visible = false;
       r.render(this.scene, cam);
+      if (hide) hide.visible = true;
     }
     r.setScissorTest(false);
   }
@@ -639,7 +679,7 @@ export class World {
   // ---------- builtins ----------
   install() {
     const R = this.R, G = R.G, B = R.B, W = this;
-    Object.assign(G, MODE, EVENT, { anm_cycle: 1, anm_add: 2, move_mode: 0, trace_mode: 0, event_type: 0, event_entity: 0, event_scan: 7 });
+    Object.assign(G, MODE, EVENT, { anm_cycle: 1, anm_add: 2, move_mode: 0, trace_mode: 0, event_type: 0 });
     G.sun_angle = [0, 60, 0]; G.sun_color = [255, 255, 255]; G.fog_color = 0; G.camera_dist = 0;
     G.my_pos = [0, 0, 0]; G.my_speed = [0, 0, 0]; G.my_color = [255, 255, 255];
     for (const k of ['my_size', 'my_age', 'my_alpha', 'my_map', 'my_flare', 'my_action']) G[k] = 0;
