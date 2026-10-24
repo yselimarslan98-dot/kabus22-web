@@ -38,7 +38,7 @@ dosyalar doğrudan bilgisayarından, sadece gerektiği kadar okunur. İndirme yo
 | Menü | Esc | Start / Options |
 
 | Arazi (HMP) | ✅ çizim + poligon çarpışma |
-| Bölüm taraması | ✅ 1–42 arası bölümler oyunun kendi yükleyicisiyle açıldı (tools/cdp.mjs) |
+| Bölüm taraması | ✅ tanımlı tüm bölümler (1–103; 63 ve 96 oyunda boş) doğru karakterle oyunun kendi yükleyicisiyle açıldı (tools/cdp.mjs) |
 
 ## Uzak kaynak (kendi kopyan için)
 
