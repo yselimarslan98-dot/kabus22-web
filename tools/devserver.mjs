@@ -3,7 +3,8 @@
 // http://localhost:8022/?dev=1 without the folder picker.
 // Usage: node tools/devserver.mjs "H:/Kabus 22"
 import { createServer } from 'node:http';
-import { createReadStream, statSync, readdirSync } from 'node:fs';
+import { createReadStream, statSync, readdirSync, openAsBlob } from 'node:fs';
+import { listWrsBlob } from '../src/formats/wrs.js';
 import { join, extname, resolve, relative } from 'node:path';
 
 const root = resolve(new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
@@ -33,12 +34,16 @@ function sendFile(req, res, file, type) {
   }
 }
 
-createServer((req, res) => {
+let indexed = null;
+createServer(async (req, res) => {
   const url = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   try {
     if (url === '/__game/manifest.json') {
       if (!game) { res.writeHead(404).end(); return; }
-      res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(manifest(game)));
+      // Same shape as tools/manifest.mjs, archive indexes included.
+      indexed ||= Promise.all(manifest(game).map(async f => /.(wrs|k22)$/i.test(f.path)
+        ? { ...f, index: await listWrsBlob(await openAsBlob(join(game, f.path))).catch(() => undefined) } : f));
+      res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(await indexed));
       return;
     }
     if (url.startsWith('/__game/')) {
@@ -50,7 +55,8 @@ createServer((req, res) => {
     let file = resolve(root, '.' + (url === '/' ? '/index.html' : url));
     if (relative(root, file).startsWith('..')) { res.writeHead(403).end(); return; }
     sendFile(req, res, file, TYPES[extname(file)] || 'application/octet-stream');
-  } catch {
-    res.writeHead(404).end('not found');
+  } catch (e) {
+    if (e.code !== 'ENOENT') console.error(url, e);
+    if (!res.headersSent) res.writeHead(404).end('not found');
   }
 }).listen(PORT, '127.0.0.1', () => console.log(`http://localhost:${PORT}/  game: ${game || '(none)'}`));

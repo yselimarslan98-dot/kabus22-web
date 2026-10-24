@@ -27,6 +27,15 @@
       <button id="btn-pick" class="primary" data-nav>Oyun klasörünü seç</button>
       <input id="dir-input" type="file" webkitdirectory directory multiple hidden>
     </div>
+    <details class="remote">
+      <summary data-nav>Kendi bulut kopyandan aç (Cloudflare R2 vb.)</summary>
+      <p class="fine">Kendi kopyanı bir depoya koyduysan adresini gir. Dosyalar parça parça, sadece gerektiği kadar
+         indirilir ve tarayıcı önbelleğinde tutulur. Kurulum: README'deki "Uzak kaynak" bölümü.</p>
+      <div class="buttons">
+        <input id="remote-url" type="url" placeholder="https://.../kabus22/" data-nav>
+        <button id="btn-remote" data-nav>Bağlan</button>
+      </div>
+    </details>
     <p id="start-msg" class="msg"></p>
     <p class="fine">Önerilen tarayıcı: Chrome veya Edge (klasör izni kalıcı olur). Firefox/Safari'de klasör her açılışta yeniden seçilir.</p>
   </div>

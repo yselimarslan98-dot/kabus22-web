@@ -6,6 +6,8 @@ import { buildLevel, findSpawn } from './engine/level.js';
 import { buildCollider, Player } from './engine/player.js';
 import { Input, PAD } from './engine/input.js';
 import { MenuNav } from './ui/menunav.js';
+import { buildEntities } from './engine/entities.js';
+import { actionHints } from './engine/actions.js';
 
 const $ = s => document.querySelector(s);
 const state = { fs: null, levels: [], current: null, paused: false, settings: { lang: 'tr', char: 'oyuncu_demir', mode: 'walk' } };
@@ -68,6 +70,7 @@ function frame(now) {
     }
     state._fHeld = input.keys.has('KeyF');
     player.update(dt, input);
+    state.current.entities.update(dt);
   }
   renderer.render(scene, camera);
 
@@ -98,22 +101,28 @@ async function playLevel(lv) {
   progress(lv.id, 'Geometri ve ışık haritaları çözülüyor', 0.45);
   await nextFrame();
   const level = parseWmb6(bytes);
-  progress(lv.id, 'Sahne kuruluyor', 0.7);
+  progress(lv.id, 'Sahne kuruluyor', 0.6);
   await nextFrame();
 
   unloadLevel();
   const built = buildLevel(level);
   scene.add(built.root);
-  const collider = buildCollider(level);
+  built.root.updateMatrixWorld(true);
+  const entities = await buildEntities(level, state.fs, state.hints, built.root,
+    f => progress(lv.id, 'Modeller ve nesneler yerleştiriliyor', 0.6 + f * 0.35));
+  scene.add(entities.root);
+  const collider = buildCollider(level, entities.colliders);
   player = new Player(camera, collider);
   player.mode = state.settings.mode;
   player.killY = built.bounds.min.y - 500;
   const spawn = findSpawn(level, state.settings.char) || { origin: built.bounds.getCenter(new THREE.Vector3()), yaw: 0 };
   player.respawn = () => player.spawn(spawn.origin, spawn.yaw);
   player.respawn();
-  state.current = { lv, level, built, collider };
+  state.current = { lv, level, built, entities, collider };
 
-  $('#hud-level').textContent = `${lv.id} · ${(performance.now() - t0) / 1000 | 0 || '<1'} sn'de yüklendi`;
+  const st = entities.stats;
+  console.info('entities', st);
+  $('#hud-level').textContent = `${lv.id} · ${st.models} model, ${st.sprites + st.maps} nesne · ${((performance.now() - t0) / 1000).toFixed(1)} sn`;
   $('#hud-hint').textContent = input.lastDevice === 'gamepad'
     ? 'Sol çubuk: hareket · Sağ çubuk: bakış · Y: fener · Start: menü'
     : 'Tıkla: fareyi kilitle · WASD: hareket · F: fener · Esc: menü';
@@ -125,8 +134,9 @@ async function playLevel(lv) {
 
 function unloadLevel() {
   if (!state.current) return;
-  scene.remove(state.current.built.root);
+  scene.remove(state.current.built.root, state.current.entities.root);
   state.current.built.dispose();
+  state.current.entities.dispose();
   state.current.collider.dispose();
   state.current = null;
 }
@@ -142,6 +152,7 @@ async function useFS(fs, label) {
   show('screen-loading');
   await fs.mount(state.settings.lang, (msg, f) => progress('Oyun dosyaları', msg, f));
   state.levels = await fs.levelList();
+  state.hints = await actionHints(fs);
   await setBackdrop(fs);
   renderMenu();
   show('screen-menu');
@@ -189,6 +200,17 @@ $('#btn-pick').onclick = async () => {
     $('#dir-input').click();
   }
 };
+$('#btn-remote').onclick = async () => {
+  const url = $('#remote-url').value.trim();
+  if (!url) return;
+  try {
+    show('screen-loading');
+    progress('Uzak kaynak', 'Dosya listesi alınıyor', 0);
+    const fs = await GameFS.fromRemote(url);
+    await idbSet('remote', url);
+    await useFS(fs, new URL(url).host);
+  } catch (e) { fail(e); }
+};
 $('#dir-input').onchange = e => useFS(GameFS.fromFileList(e.target.files)).catch(fail);
 
 (async () => {
@@ -198,6 +220,16 @@ $('#dir-input').onchange = e => useFS(GameFS.fromFileList(e.target.files)).catch
     const want = params.get('level');
     const lv = want && state.levels.find(l => l.id.toLowerCase() === want.toLowerCase());
     if (lv) await playLevel(lv);
+    // Debug: &ent=<file> puts a free camera in front of the first entity using that file.
+    const ent = params.get('ent');
+    const obj = ent && state.current?.entities.root.children.find(o => o.userData.entity.file.toLowerCase() === ent.toLowerCase());
+    if (obj) {
+      const r = obj.geometry?.boundingSphere?.radius || 100;
+      player.mode = 'fly';
+      player.spawn(obj.position.clone().add(new THREE.Vector3(r * 2.2, r * 0.6, r * 0.8)), Math.atan2(0.8, -2.2));
+      player.pitch = -0.2;
+      if (params.has('solo')) { state.current.built.root.visible = false; scene.background = new THREE.Color(0x404448); scene.fog = null; }
+    }
     return;
   }
   const saved = await idbGet('settings');
@@ -206,6 +238,8 @@ $('#dir-input').onchange = e => useFS(GameFS.fromFileList(e.target.files)).catch
   $('#sel-char').value = state.settings.char;
   $('#sel-mode').value = state.settings.mode;
 
+  const remote = params.get('src') || await idbGet('remote');
+  if (remote) $('#remote-url').value = remote;
   const handle = await idbGet('dir');
   if (handle && handle.queryPermission) {
     const btn = $('#btn-resume');

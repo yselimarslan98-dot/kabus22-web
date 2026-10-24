@@ -6,18 +6,31 @@ import { idbGet, idbSet } from './idb.js';
 
 const INDEX_VERSION = 1;
 
-// Blob-like view of a file on the local dev server, read with HTTP Range requests.
+// Blob-like view of a remote file (dev server or the player's own bucket), read with HTTP Range
+// requests. Remote reads are kept in Cache Storage so a level is downloaded only once.
+const CACHE = 'kabus22-remote-v1';
 class RangeBlob {
   constructor(url, lastModified, start, end) {
     Object.assign(this, { url, size: end - start, lastModified, start, end });
   }
   slice(a = 0, b = this.size) {
-    return new RangeBlob(this.url, this.lastModified, this.start + a, this.start + Math.min(b, this.size));
+    const s = new RangeBlob(this.url, this.lastModified, this.start + a, this.start + Math.min(b, this.size));
+    s.cached = this.cached;
+    return s;
   }
   async arrayBuffer() {
     if (this.size <= 0) return new ArrayBuffer(0);
+    const key = `${this.url}?k22range=${this.start}-${this.end}&m=${this.lastModified}`;
+    const cache = this.cached && self.caches ? await caches.open(CACHE).catch(() => null) : null;
+    const hit = cache && await cache.match(key);
+    if (hit) return hit.arrayBuffer();
     const r = await fetch(this.url, { headers: { Range: `bytes=${this.start}-${this.end - 1}` } });
-    return r.arrayBuffer();
+    if (!r.ok) throw new Error(`${r.status} ${this.url}`);
+    let buf = await r.arrayBuffer();
+    // Server ignored the Range header: cut the slice out of the full body.
+    if (r.status === 200 && buf.byteLength !== this.size) buf = buf.slice(this.start, this.end);
+    if (cache && this.size > 4096) cache.put(key, new Response(buf)).catch(() => {});
+    return buf;
   }
 }
 
@@ -64,6 +77,22 @@ export class GameFS {
     return new GameFS(files);
   }
 
+  // A folder the player uploaded to their own storage (e.g. Cloudflare R2 with CORS), described by
+  // manifest.json from tools/manifest.mjs. Nothing is fetched until a file is actually read.
+  static async fromRemote(base) {
+    if (!base.endsWith('/')) base += '/';
+    const r = await fetch(base + 'manifest.json', { cache: 'no-cache' });
+    if (!r.ok) throw new Error(`manifest.json okunamadı (${r.status})`);
+    const files = new Map();
+    for (const f of await r.json()) {
+      const b = new RangeBlob(new URL(f.path.split('/').map(encodeURIComponent).join('/'), base).href, f.mtime, 0, f.size);
+      b.cached = true;
+      b.index = f.index;
+      files.set(f.path.toLowerCase(), b);
+    }
+    return new GameFS(files);
+  }
+
   isKabus22() {
     return this.files.has('kaynak.k22') && (this.files.has('k22.wrs') || this.files.has('k22widescreen.wrs'));
   }
@@ -78,7 +107,7 @@ export class GameFS {
       onProgress(`${name} dizinleniyor`, i / names.length);
       const blob = this.files.get(name);
       const key = `wrs:${INDEX_VERSION}:${name}:${blob.size}:${blob.lastModified}`;
-      let entries = await idbGet(key);
+      let entries = blob.index || await idbGet(key);
       if (!entries) {
         entries = await listWrsBlob(blob);
         await idbSet(key, entries);
@@ -90,6 +119,15 @@ export class GameFS {
       }
     }
     onProgress('hazır', 1);
+  }
+
+  // Old entity records store file names in 13 bytes ("shasi100t2.md"); resolve those by prefix.
+  resolve(name) {
+    const k = name.toLowerCase().replace(/\\/g, '/');
+    if (this.entries.has(k) || this.files.has(k)) return k;
+    if (k.length < 12) return null;
+    for (const e of this.entries.keys()) if (e.startsWith(k)) return e;
+    return null;
   }
 
   has(name) {

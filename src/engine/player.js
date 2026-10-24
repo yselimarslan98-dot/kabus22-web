@@ -9,13 +9,21 @@ const GRAVITY = 1400;
 const JUMP = 380;
 const WALK = 190, RUN = 340, FLY = 420;
 
-export function buildCollider(level) {
+// extra: [{ geo, matrix }] for solid entities (models, map entities).
+export function buildCollider(level, extra = []) {
   const pos = [], idx = [];
+  const v = new THREE.Vector3();
   for (const g of level.groups) {
     if (g.passable) continue;
     const base = pos.length / 3;
     for (const v of g.pos) pos.push(v);
     for (const i of g.idx) idx.push(base + i);
+  }
+  for (const { geo: eg, matrix } of extra) {
+    const base = pos.length / 3, p = eg.attributes.position;
+    for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i).applyMatrix4(matrix); pos.push(v.x, v.y, v.z); }
+    const ix = eg.index.array;
+    for (let i = 0; i < ix.length; i++) idx.push(base + ix[i]);
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));

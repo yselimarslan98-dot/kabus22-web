@@ -14,7 +14,9 @@ dosyalar doğrudan bilgisayarından, sadece gerektiği kadar okunur. İndirme yo
 | Bölüm listesi | ✅ oyunun kendi `LevelYonetim.wdl` dosyasından |
 | Oyuncu | ✅ yürüme (kapsül çarpışma, yerçekimi, zıplama, koşma), serbest kamera, fener |
 | Kontrolcü | ✅ Gamepad API (Xbox, DualSense, Switch Pro), menülerde gezinme, titreşim |
-| MDL4/5/7 modeller (karakterler, eşyalar) | ⏳ sıradaki adım |
+| MDL4/5/7 modeller, TGA sprite'lar, harita varlıkları | ✅ 795 modelin hepsi okunuyor; ışık bölümün ışık haritasından, köşe animasyonu |
+| Varlık bayrakları | ✅ WMB bayrakları + oyunun WDL action'larının başlangıçta açtığı bayraklar (invisible, passable, bright...) |
+| Uzak kaynak | ✅ kendi bulut kopyandan HTTP Range ile parça parça okuma, Cache Storage önbelleği |
 | Ses (OGG/WAV, 3D ses kaynakları) | ⏳ |
 | WDL (C-Script) yorumlayıcı: kapılar, düşmanlar, envanter, senaryo | ⏳ |
 | Ara sahne videoları (AVI) | ⏳ |
@@ -34,10 +36,21 @@ dosyalar doğrudan bilgisayarından, sadece gerektiği kadar okunur. İndirme yo
 | Fener | F | Y / △ |
 | Menü | Esc | Start / Options |
 
+## Uzak kaynak (kendi kopyan için)
+
+Oyunu kendi depolama alanından açmak için (ör. başka bir bilgisayar):
+
+1. `node tools/manifest.mjs "H:/Kabus 22"` → klasöre `manifest.json` yazar (arşiv dizinleri dahil, ilk açılışta tarama gerekmez).
+2. Klasörü (`video/` ve `saves/` hariç) Range isteklerini destekleyen bir depoya yükle, ör. Cloudflare R2.
+   CORS'ta site adresine `GET` izni ver ve `Range` başlığına izin ver. Google Drive Range/CORS desteklemediği için uygun değildir.
+3. Sitede **Kendi bulut kopyandan aç** → adresi gir. Sadece açılan bölümün baytları indirilir ve önbelleğe alınır.
+
+Bu repo ve site oyun dosyası barındırmaz ve varsayılan bir indirme adresi içermez.
+
 ## Geliştirme
 
 ```sh
-node tools/devserver.mjs "H:/Kabus 22"    # http://localhost:8022/?dev=1&level=Kk
+node tools/devserver.mjs "H:/Kabus 22"    # http://localhost:8022/?dev=1&level=Kk  (&ent=opel.mdl&solo=1: tek varlığa bak)
 node tools/wrs-cli.mjs list "H:/Kabus 22/K22.wrs"
 node tools/wrs-cli.mjs extract "H:/Kabus 22/Kaynak.k22" out/
 ```
