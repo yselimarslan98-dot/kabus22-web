@@ -295,6 +295,20 @@ async function playGame() {
     onExit: () => { game?.stop(); game = null; show('screen-menu'); },
   });
   window.k22.game = game;
+  const local = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  // Development: ?fast=8 runs game time faster to get through intros quickly.
+  const fast = new URLSearchParams(location.search).get('fast');
+  if (fast && local) game.speed = +fast;
+  // Development: ?keys=ArrowUp@30000-33000,Enter@9000 holds keys at given times (ms after start).
+  const keys = new URLSearchParams(location.search).get('keys');
+  if (keys && local) {
+    for (const k of keys.split(',')) {
+      const [, code, a, b] = /^(\w+)@(\d+)(?:-(\d+))?$/.exec(k) || [];
+      if (!code) continue;
+      setTimeout(() => dispatchEvent(new KeyboardEvent('keydown', { code })), +a);
+      setTimeout(() => dispatchEvent(new KeyboardEvent('keyup', { code })), +(b || +a + 100));
+    }
+  }
   show('screen-play');
   await game.start(compiled, msg => progress('Kabus 22', msg, 0.9));
 }

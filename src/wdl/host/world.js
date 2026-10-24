@@ -160,7 +160,7 @@ export class World {
 
   attach(e) {
     const key = text(e.type).toLowerCase();
-    e._res = undefined;
+    // The old model stays until the new one (ent_morph) has loaded.
     const done = r => {
       if (e.removed || text(e.type).toLowerCase() !== key) return;
       e._res = r;
@@ -263,14 +263,14 @@ export class World {
   update(dt) {
     const R = this.R, G = R.G;
     for (const e of this.ents) this.syncEnt(e);
-    this.updateParticles(dt);
+    if (!(+G.freeze_mode > 0)) this.updateParticles(dt);
     this.updateLights();
     void G;
   }
 
   syncEnt(e) {
     const o = e._obj;
-    if (!o) return;
+    if (!o || !e._res) return;
     o.visible = !e.invisible;
     if (!o.visible) return;
     S(e.x, e.y, e.z, o.position);

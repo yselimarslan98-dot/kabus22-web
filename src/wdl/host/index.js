@@ -158,7 +158,7 @@ export class Game {
     const loop = now => {
       if (!this.running) return;
       requestAnimationFrame(loop);
-      const dt = Math.min(0.1, (now - this.last) / 1000);
+      const dt = Math.min(0.1, (now - this.last) / 1000) * (this.speed || 1);
       this.last = now;
       this.frame(dt);
     };
@@ -178,9 +178,9 @@ export class Game {
     const [mx, my] = R.G.mouse_pos;
     this.ui.pointer(mx, my, false, false);
     if (!R.paused) R.frame(dt);
-    this.world.update(dt);
-    this.world.render(this.views, this.size);
-    this.ui.draw();
+    for (const step of [() => this.world.update(dt), () => this.world.render(this.views, this.size), () => this.ui.draw()]) {
+      try { step(); } catch (e) { R.warnOnce('motor hatası: ' + e.message); console.error(e); }
+    }
   }
 
   stop() {

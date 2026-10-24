@@ -49,10 +49,14 @@ export class EngineInput {
       return this.down.has(code) ? 1 : 0;
     };
 
+    this.fresh = new Set();     // pressed since the last frame
+    this.deferred = [];         // releases of keys no frame has seen pressed yet
     const key = (e, on) => {
       const sc = SCAN[e.code];
       if (sc === undefined) return;
-      if (on) { this.down.add(sc); G.key_lastpressed = sc; } else this.down.delete(sc);
+      // The scripts poll keys once per frame; a tap shorter than a frame must still be seen.
+      if (!on && this.fresh.has(sc)) { this.deferred.push(e); e.preventDefault(); return; }
+      if (on) { this.down.add(sc); this.fresh.add(sc); G.key_lastpressed = sc; } else this.down.delete(sc);
       const n = NAMES[e.code];
       if (n) G['key_' + n] = on ? 1 : 0;
       G.key_any = this.down.size ? 1 : 0;
@@ -83,6 +87,11 @@ export class EngineInput {
   // Called once per frame before the scripts run.
   poll(dt) {
     const G = this.R.G;
+    // Releases held back until one frame has seen the key down (see the key handler).
+    const late = this.seen || [];
+    this.seen = this.deferred.splice(0);
+    this.fresh.clear();
+    for (const e of late) this.onKeyUp(e);
     // mouse_force: movement per frame, roughly normalised like the engine's (-1..1 range for normal moves)
     G.mouse_force[0] = this.mouseDelta[0] / 20; G.mouse_force[1] = -this.mouseDelta[1] / 20;
     this.mouseDelta[0] = this.mouseDelta[1] = 0;

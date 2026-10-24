@@ -123,9 +123,12 @@ export class Runtime {
     const list = this.tasks;
     this.tasks = [];
     const keep = [];
+    // freeze_mode: entity functions (and particles, see the host) stand still, e.g. under the pause menu.
+    const frozen = +G.freeze_mode > 0;
     for (const t of list) {
       if (t.dead) continue;
       if (t.ctx.me && t.ctx.me.removed) continue;          // function of a removed entity ends
+      if (frozen && t.ctx.me && t.ctx.me.kind === 'entity') { if (t.wake <= this.frameNo) t.wake = this.frameNo + 1; if (t.wakeT) t.wakeT += dt; keep.push(t); continue; }
       if (t.wake > this.frameNo || (t.wakeT && t.wakeT > this.now) || (t.until && !t.until())) { keep.push(t); continue; }
       const prev = this.current;
       this.current = t;
