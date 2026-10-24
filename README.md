@@ -44,7 +44,7 @@ Oyunun içinde oyunun kendi tuşları geçerlidir (Seçenekler'den değiştirile
 | Dövüş | ✅ nişan alma (otomatik hedef), ateş, mermi izleri/sesleri, düşman saldırısı ve hasar, düşman ölümü (Mekke bölümünde test edildi) |
 | Envanter | ✅ silahlar/mermi sayıları, nesneler, dokümanlar (metin + görsel), Kullan/Doldur/Göster alt menüsü |
 | Kayıt / yükleme | ✅ kayıt noktaları ve otomatik kayıt IndexedDB'ye yazar; ana menüdeki Yükle listesi tarihle gösterir, yükleme bölümü ve durumu geri getirir |
-| Oynanış | ✅ 1. bölümde yürüyerek çıkış kapısından 3. bölüme geçiş, kilitli kapı mesajları, eşya/mermi/doküman alma, ilk yardım kullanma, çıkışta tetiklenen ara sahne; kumandayla yürüme, nişan, ateş, envanter |
+| Oynanış | ✅ 1. bölümde yürüyerek çıkış kapısından 3. bölüme geçiş, kilitli kapı mesajları, eşya/mermi/doküman alma, ilk yardım kullanma, çıkışta tetiklenen ara sahne; kumandayla yürüme, nişan, ateş, envanter; harita (H) ve kaydırma |
 
 ## Uzak kaynak (kendi kopyan için)
 

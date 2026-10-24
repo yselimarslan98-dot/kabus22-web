@@ -180,6 +180,9 @@ export class Game {
     const loop = now => {
       if (!this.running) return;
       requestAnimationFrame(loop);
+      // fps_max (the game sets 72): on fast displays some steps of the scripts round to nothing otherwise.
+      const fpsMax = val(this.R.G.fps_max);
+      if (fpsMax > 0 && now - this.last < 1000 / fpsMax - 2) return;
       const dt = Math.min(0.1, (now - this.last) / 1000) * (this.speed || 1);
       this.last = now;
       this.frame(dt);
