@@ -17,10 +17,10 @@ dosyalar doğrudan bilgisayarından, sadece gerektiği kadar okunur. İndirme yo
 | MDL4/5/7 modeller, TGA sprite'lar, harita varlıkları | ✅ 795 modelin hepsi okunuyor; ışık bölümün ışık haritasından, köşe animasyonu |
 | Varlık bayrakları | ✅ WMB bayrakları + oyunun WDL action'larının başlangıçta açtığı bayraklar (invisible, passable, bright...) |
 | Uzak kaynak | ✅ kendi bulut kopyandan HTTP Range ile parça parça okuma, Cache Storage önbelleği |
-| Ses (OGG/WAV, 3D ses kaynakları) | ⏳ |
+| Ses (OGG/WAV, 3D ses) | ✅ snd_*/media_* WebAudio üzerinde; 3D denge oyunun kendi hesabıyla |
 | WDL (C-Script) derleyici + çalışma zamanı | ✅ oyunun 106 bin satırlık script'i JS'e derleniyor (0 hata); açılış, ana menü, giriş hikâyesi ve ilk bölüm oyunun kendi koduyla çalışıyor |
 | Motor fonksiyonları | ✅ paneller/yazılar, ses (snd_*/media_*), dosyalar (kayıtlar IndexedDB'de), klavye/fare/kumanda, level_load, ent_move/trace/scan, animasyon, parçacıklar · ⏳ eksikler test edildikçe |
-| Ara sahne videoları (WMV2/WMV3) | ⏳ tarayıcılar WMV oynatamıyor; şimdilik atlanıyor |
+| Ara sahne videoları (WMV2/WMV3) | ✅ ilk oynatmada tarayıcıda ffmpeg.wasm ile MP4'e çevrilip IndexedDB'de saklanıyor; altyazılar kare numarasıyla |
 
 ## Oynamak
 
@@ -37,6 +37,9 @@ dosyalar doğrudan bilgisayarından, sadece gerektiği kadar okunur. İndirme yo
 | Fener | F | Y / △ |
 | Menü | Esc | Start / Options |
 
+| Arazi (HMP) | ✅ çizim + poligon çarpışma |
+| Bölüm taraması | ✅ 1–42 arası bölümler oyunun kendi yükleyicisiyle açıldı (tools/cdp.mjs) |
+
 ## Uzak kaynak (kendi kopyan için)
 
 Oyunu kendi depolama alanından açmak için (ör. başka bir bilgisayar):
@@ -51,6 +54,7 @@ Bu repo ve site oyun dosyası barındırmaz ve varsayılan bir indirme adresi i�
 ## Geliştirme
 
 ```sh
+# headless test: K22_PROFILE=<klasör> node tools/cdp.mjs "http://localhost:8022/?dev=1&play=1" adimlar.json
 node tools/devserver.mjs "H:/Kabus 22"    # http://localhost:8022/?dev=1&level=Kk  (&ent=opel.mdl&solo=1: tek varlığa bak)
 node tools/wrs-cli.mjs list "H:/Kabus 22/K22.wrs"
 node tools/wrs-cli.mjs extract "H:/Kabus 22/Kaynak.k22" out/
