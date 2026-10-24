@@ -84,6 +84,10 @@ export class World {
     this.lights = Array.from({ length: 8 }, () => { const l = new THREE.PointLight(0xffffff, 0, 1, 1); l.visible = false; scene.add(l); return l; });
     this.camera3 = new THREE.PerspectiveCamera(60, 16 / 9, 2, 60000);
     scene.add(this.camera3);
+    // View entities (ENTITY name { view = camera; ... }): drawn on top, placed relative to their view.
+    this.viewScene = new THREE.Scene();
+    this.viewScene.add(new THREE.AmbientLight(0xffffff, 1.5));
+    this.viewEnts = new Set();
     this.install();
   }
 
@@ -172,7 +176,7 @@ export class World {
   }
 
   buildObject(e) {
-    if (e._obj) { this.root.remove(e._obj); e._obj = null; }
+    if (e._obj) { e._obj.parent?.remove(e._obj); e._obj = null; }
     const r = e._res;
     if (!r) return;
     let obj;
@@ -212,7 +216,7 @@ export class World {
     obj.matrixAutoUpdate = true;
     e._obj = obj;
     e._lightAt = null;
-    this.root.add(obj);
+    (e._view ? this.viewScene : this.root).add(obj);
   }
 
   remove(e) {
@@ -672,8 +676,41 @@ export class World {
       if (hide) hide.visible = false;
       r.render(this.scene, cam);
       if (hide) hide.visible = true;
+      if (this.placeViewEnts(v, cam)) { r.clearDepth(); r.render(this.viewScene, cam); }
     }
     r.setScissorTest(false);
+  }
+
+  createViewEnt(name) {
+    const e = new Ent('');
+    e.name = name;
+    e._view = true;
+    e.visible = 0;
+    e.layer = 0;
+    e.unlit = 1;
+    this.viewEnts.add(e);
+    return e;
+  }
+
+  // Positions the view entities of view v in front of its camera; returns whether any is visible.
+  placeViewEnts(v, cam) {
+    let any = false;
+    for (const e of this.viewEnts) {
+      const o = e._obj;
+      if (!o) continue;
+      const show = e.view === v && !!val(e.visible) && !e.invisible;
+      o.visible = show;
+      if (!show) continue;
+      any = true;
+      // view space: x forward, y left, z up -> camera space: (-y, z, -x)
+      o.position.set(-val(e.y), val(e.z), -val(e.x)).applyMatrix4(cam.matrixWorld);
+      o.quaternion.copy(cam.quaternion)
+        .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2))
+        .multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(e.roll * DEG, e.pan * DEG, e.tilt * DEG, 'YZX')));
+      o.scale.set(e.scale_x || 1, e.scale_z || 1, e.scale_y || 1);
+      if (e._res?.kind === 'model') { e._light = new THREE.Color(1, 1, 1); e._lightAt = [e.x, e.y, e.z]; this.syncModel(e, o, e._res); }
+    }
+    return any;
   }
 
   // ---------- builtins ----------

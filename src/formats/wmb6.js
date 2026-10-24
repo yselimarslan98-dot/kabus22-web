@@ -41,7 +41,10 @@ export function parseWmb6(buf) {
   const LM = list(LIST.lightmaps);
   const objects = readObjects(u8, dv, list(LIST.objects));
   const info = objects.find(ob => ob.type === 'info');
-  const lmSize = 256 << (info ? info.lmapSize : 0);
+  // Pages are 256 << lmapSize square; some map entities carry garbage there, which would make the
+  // page size 0 (endless loop) or huge. Fall back to 256 and only accept sizes the data can hold.
+  let lmSize = 256 << Math.min(4, Math.max(0, info ? info.lmapSize : 0));
+  if (LM.len % (lmSize * lmSize * 3) !== 0 && LM.len % (256 * 256 * 3) === 0) lmSize = 256;
   const lightmaps = [];
   for (let o = LM.off; o + lmSize * lmSize * 3 <= LM.off + LM.len; o += lmSize * lmSize * 3) {
     const px = new Uint8Array(lmSize * lmSize * 4);

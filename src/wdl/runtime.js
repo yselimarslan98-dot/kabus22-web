@@ -91,6 +91,7 @@ export class Runtime {
 
   resume(task, value, first = false) {
     const prev = this.current, prevL = this.L;
+    if (!prev) this.stepStart = performance.now();
     this.current = task;
     this.L = 0;
     let r;
@@ -139,6 +140,7 @@ export class Runtime {
       const prev = this.current;
       this.current = t;
       this.L = 0;
+      this.stepStart = performance.now();
       let r;
       try { r = t.gen.next(); }
       catch (err) { this.current = prev; this.error(err, t); continue; }
@@ -151,6 +153,12 @@ export class Runtime {
   }
 
   waitFor(fn) { return { until: () => !this.tasks.some(t => t.name === fn?.name) }; }
+
+  // Called every 4096 loop iterations: a function that runs too long without wait() is stopped
+  // (the engine has max_loops for the same purpose) instead of freezing the page.
+  guard() {
+    if (this.L > 4e6 || performance.now() - this.stepStart > 1500) this.runaway();
+  }
 
   runaway() {
     this.L = 0;

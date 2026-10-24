@@ -16,7 +16,7 @@ const chrome = spawn(CHROME, [`--remote-debugging-port=${port}`, '--headless=new
   '--autoplay-policy=no-user-gesture-required', '--window-size=1280,720', '--mute-audio', 'about:blank'], { stdio: 'ignore' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-let ws, id = 0;
+let ws, id = 0, pausedResolve = null;
 const pending = new Map();
 const logs = [];
 async function connect() {
@@ -43,15 +43,28 @@ try {
     const m = JSON.parse(ev.data);
     if (m.id && pending.has(m.id)) { const p = pending.get(m.id); pending.delete(m.id); m.error ? p.reject(new Error(m.error.message)) : p.resolve(m.result); }
     else if (m.method === 'Runtime.consoleAPICalled') logs.push(`[${m.params.type}] ` + m.params.args.map(a => a.value ?? a.description ?? '').join(' '));
+    else if (m.method === 'Debugger.paused') {
+      console.log('--- duraklatıldı, yığın ---');
+      for (const fr of m.params.callFrames.slice(0, 25)) console.log(`  ${fr.functionName || '(anonim)'}  ${fr.url.split('/').slice(-2).join('/')}:${fr.location.lineNumber + 1}`);
+      pausedResolve?.();
+    }
     else if (m.method === 'Runtime.exceptionThrown') logs.push('[exception] ' + (m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text));
   });
   await send('Runtime.enable');
   await send('Page.enable');
+  await send('Debugger.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
   await send('Page.navigate', { url });
   const t0 = Date.now();
   for (const s of steps) {
     if (s.wait) await sleep(s.wait);
+    if (s.pauseStack) {   // interrupt a page stuck in a loop and print where
+      const done = new Promise(r => { pausedResolve = r; });
+      send('Debugger.pause').catch(() => {});
+      await Promise.race([done, sleep(10000)]);
+      await send('Debugger.resume').catch(() => {});
+      continue;
+    }
     if (s.until) {   // wait until a JS expression is truthy (max s.timeout ms)
       const end = Date.now() + (s.timeout || 60000);
       while (Date.now() < end) {
@@ -61,7 +74,14 @@ try {
       }
     }
     if (s.eval) {
-      const r = await send('Runtime.evaluate', { expression: s.eval, returnByValue: true, awaitPromise: true });
+      let r = await Promise.race([send('Runtime.evaluate', { expression: s.eval, returnByValue: true, awaitPromise: true }), sleep(30000).then(() => null)]);
+      if (!r) {   // page stuck: show where, then give up
+        console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s] ${s.label || ''}: sayfa yanıt vermiyor`);
+        const done = new Promise(res => { pausedResolve = res; });
+        send('Debugger.pause').catch(() => {});
+        await Promise.race([done, sleep(10000)]);
+        break;
+      }
       console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s] ${s.label || s.eval.slice(0, 60)} =>`, JSON.stringify(r.result?.value ?? r.exceptionDetails?.exception?.description, null, 0)?.slice(0, 4000));
     }
     if (s.key) {

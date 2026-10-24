@@ -228,7 +228,7 @@ export function compile(prog) {
       return withWriteback(`B[${jsStr(name)}](ctx${args.map((a, i) => ', ' + (slots.includes(i) ? ref(a) : ex(a))).join('')})`, mark);
     }
 
-    const GUARD = 'if (++R.L > 200000) R.runaway();';
+    const GUARD = 'if ((++R.L & 4095) === 0) R.guard();';
 
     // ----- structured statements -----
     function st(s, ind) {

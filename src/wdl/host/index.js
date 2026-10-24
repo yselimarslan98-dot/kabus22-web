@@ -90,11 +90,21 @@ export class Game {
         return o;
       }
       if (kind === 'view') { const v = new View(name); this.views.push(v); return v; }
-      if (kind === 'entity') return { kind: 'viewentity', name, visible: 0 };
+      if (kind === 'entity') return this.world.createViewEnt(name);
       return { kind, name };
     };
     R.props = (obj, list) => {
       if (obj.kind === 'panel' || obj.kind === 'text') ui.define(obj, list);
+      else if (obj._view) {
+        for (const [k, thunk] of list) {
+          let v;
+          try { v = thunk(); } catch { continue; }
+          const x = v.length === 1 ? (v[0] instanceof Ref ? val(v[0]) : v[0]) : v;
+          if (k === 'type') { obj.type = new Str(text(x)); this.world.attach(obj); }
+          else if (k === 'flags') { for (const f of v) if (val(f) & FLAGS.visible) obj.visible = 1; }
+          else obj[k] = x;
+        }
+      }
       else for (const [k, thunk] of list) { try { const v = thunk(); obj[k] = v.length === 1 ? (v[0] instanceof Ref ? val(v[0]) : v[0]) : v; } catch {} }
     };
 
