@@ -886,19 +886,19 @@ export class World {
       // negative gap the gravity scripts lift out of): start from the top of the box.
       // The box's footprint is swept too: rays from the centre and the four corners, nearest hit wins, so
       // an entity walking off a step stays on it until the whole box has left the edge.
-      let lift = 0, h;
+      // The corner rays start no higher than a stair step above the feet: a surface the box already
+      // overlaps higher up (the top of a banister beside a landing) is not a floor to lift onto.
+      let h, dist;
       if ((mode & MODE.use_box) && c.me && t[2] < f[2] && Math.hypot(t[0] - f[0], t[1] - f[1]) < 1e-3) {
         const e = c.me;
-        lift = Math.max(0, val(e.max_z));
-        f[2] += lift;
+        const lift = Math.max(0, val(e.max_z)), cornerLift = Math.min(lift, val(e.min_z) + 18);
         const fx = 0.9 * Math.min(-e.min_x, e.max_x), fy = 0.9 * Math.min(-e.min_y, e.max_y);
-        for (const [ox, oy] of [[0, 0], [fx, fy], [fx, -fy], [-fx, fy], [-fx, -fy]]) {
-          const r = W.traceRay([f[0] + ox, f[1] + oy, f[2]], [t[0] + ox, t[1] + oy, t[2]], mode, c.me, c.you);
-          if (r && (!h || r.dist < h.dist - 0.01)) h = r;
+        for (const [ox, oy, l] of [[0, 0, lift], [fx, fy, cornerLift], [fx, -fy, cornerLift], [-fx, fy, cornerLift], [-fx, -fy, cornerLift]]) {
+          const r = W.traceRay([f[0] + ox, f[1] + oy, f[2] + l], [t[0] + ox, t[1] + oy, t[2]], mode, c.me, c.you);
+          if (r && (!h || r.dist - l < dist - 0.01)) { h = r; dist = r.dist - l; }
         }
-      } else h = W.traceRay(f, t, mode, c.me, c.you);
+      } else { h = W.traceRay(f, t, mode, c.me, c.you); dist = h?.dist; }
       if (!h) { c.you = 0; G.result = 0; return 0; }
-      let dist = h.dist - lift;
       // use_box sweeps the bounding box of me: the distance is measured from the box surface,
       // so a downward trace gives the gap under the feet (negative when sunk into the floor).
       if ((mode & MODE.use_box) && c.me) {
