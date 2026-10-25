@@ -214,7 +214,11 @@ export class World {
       obj = new THREE.Group();
       obj.add(plane);
       obj.userData.plane = plane;
-      if (!e._boxSet) { e.min_x = -2; e.max_x = 2; e.min_y = -r.img.width / r.frames / 2; e.max_y = r.img.width / r.frames / 2; e.min_z = -r.img.height / 2; e.max_z = r.img.height / 2; }
+      // box scaled like the plane (width along y by scale_y, height by scale_z): fences placed at 0.17 scale
+      if (!e._boxSet) {
+        const w = r.img.width / r.frames / 2 * (e.scale_y || 1), h = r.img.height / 2 * (e.scale_z || 1);
+        e.min_x = -2; e.max_x = 2; e.min_y = -w; e.max_y = w; e.min_z = -h; e.max_z = h;
+      }
     } else if (r.kind === 'map') {
       const built = buildLevel(r.sub);
       obj = built.root;
