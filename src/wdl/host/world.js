@@ -30,8 +30,10 @@ const ENTITY_FLAGS = { invisible: 1, passable: 2, transparent: 4, overlay: 16, f
 
 // Models much bigger than a character (rock walls and cave pieces placed as models) collide with their
 // polygons; their bounding box would fill whole rooms the player walks inside.
+// Static decoration (no action, or only the brightness helper action) does the same: railings, scaffolds,
+// stair frames, often rotated, whose axis-aligned boxes close passages the player walks through.
 const bigModel = o => o._res?.kind === 'model' && !o._res.m?.terrain && !!o._obj && !o._view &&
-  Math.max(-o.min_x, o.max_x, -o.min_y, o.max_y) > 256;
+  (Math.max(-o.min_x, o.max_x, -o.min_y, o.max_y) > 256 || !o._actionName || /parlaklik_(ayari|degeri)$/i.test(o._actionName));
 
 // ---------- script-visible objects ----------
 let entId = 0;
@@ -596,7 +598,7 @@ export class World {
         box.makeEmpty().expandByPoint(seg.start).expandByPoint(seg.end);
         box.min.addScalar(-r); box.max.addScalar(r);
         let pushed = false;
-        for (const col of [this.level.collider, ...this.terrains, ...polys]) col.boundsTree.shapecast({
+        for (const col of [this.level.collider, ...this.terrains, ...polys]) if (!col.boundingBox || col.boundingBox.intersectsBox(box)) col.boundsTree.shapecast({
           intersectsBounds: b => b.intersectsBox(box),
           intersectsTriangle: t => {
             const dist = t.closestPointToSegment(seg, tri, cap);
@@ -677,6 +679,7 @@ export class World {
     m.updateMatrixWorld(true);
     const geo = o._obj.geometry.clone().applyMatrix4(m.matrixWorld);
     geo.boundsTree = new MeshBVH(geo);
+    geo.computeBoundingBox();
     o._poly = { key, geo };
     return geo;
   }
@@ -879,12 +882,19 @@ export class World {
       const f = vec.rd(from), t = vec.rd(to);
       // A box swept down finds a floor its centre is already below (spawned sunk into the floor, a
       // negative gap the gravity scripts lift out of): start from the top of the box.
-      let lift = 0;
+      // The box's footprint is swept too: rays from the centre and the four corners, nearest hit wins, so
+      // an entity walking off a step stays on it until the whole box has left the edge.
+      let lift = 0, h;
       if ((mode & MODE.use_box) && c.me && t[2] < f[2] && Math.hypot(t[0] - f[0], t[1] - f[1]) < 1e-3) {
-        lift = Math.max(0, val(c.me.max_z));
+        const e = c.me;
+        lift = Math.max(0, val(e.max_z));
         f[2] += lift;
-      }
-      const h = W.traceRay(f, t, mode, c.me, c.you);
+        const fx = 0.9 * Math.min(-e.min_x, e.max_x), fy = 0.9 * Math.min(-e.min_y, e.max_y);
+        for (const [ox, oy] of [[0, 0], [fx, fy], [fx, -fy], [-fx, fy], [-fx, -fy]]) {
+          const r = W.traceRay([f[0] + ox, f[1] + oy, f[2]], [t[0] + ox, t[1] + oy, t[2]], mode, c.me, c.you);
+          if (r && (!h || r.dist < h.dist - 0.01)) h = r;
+        }
+      } else h = W.traceRay(f, t, mode, c.me, c.you);
       if (!h) { c.you = 0; G.result = 0; return 0; }
       let dist = h.dist - lift;
       // use_box sweeps the bounding box of me: the distance is measured from the box surface,
