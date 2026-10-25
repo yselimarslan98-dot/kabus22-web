@@ -592,8 +592,11 @@ export class World {
       const px = e.x + sx, py = e.y + sy, pz = e.z + sz;
       let pos = S(px, py, pz);
       if (this.level && !(e.passable && (mode & MODE.ignore_passable))) {
-        // capsule from feet+r to head-r
-        const lo = Math.min(zlo + r, (zlo + zhi) / 2), hi = Math.max(zhi - r, lo);
+        // capsule from feet+r to head-r. Like A6 (move_min_z), a mostly horizontal move ignores the lowest
+        // quarter of the hull, so stair steps don't block; the scripts' gravity traces then lift the mover.
+        // Narrow characters (Ebru, r 6.4) were stopped by 10-unit spiral steps in yereson otherwise.
+        const stepUp = sz < 0 && -sz > Math.hypot(sx, sy) ? 0 : 0.25 * (zhi - zlo);
+        const lo = Math.min(zlo + stepUp + r, (zlo + zhi) / 2), hi = Math.max(zhi - r, lo);
         seg.start.copy(pos).y += lo; seg.end.copy(pos).y += hi;
         box.makeEmpty().expandByPoint(seg.start).expandByPoint(seg.end);
         box.min.addScalar(-r); box.max.addScalar(r);
