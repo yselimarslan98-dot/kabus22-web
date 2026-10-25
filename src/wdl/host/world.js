@@ -136,7 +136,10 @@ export class World {
       const img = decodeImage(name, bytes);
       const tex = dataTexture(img);
       tex.flipY = true;
-      return { kind: 'sprite', img, tex };
+      // name+N.tga: an animated sprite, N frames side by side; e.frame picks one
+      const frames = +(/\+(\d+)\.\w+$/.exec(name)?.[1] || 1);
+      if (frames > 1) tex.repeat.x = 1 / frames;
+      return { kind: 'sprite', img, tex, frames };
     }
     throw new Error('desteklenmeyen tür');
   }
@@ -200,13 +203,13 @@ export class World {
         e.min_x = b.min.x * sx; e.max_x = b.max.x * sx; e.min_y = -b.max.z * sy; e.max_y = -b.min.z * sy; e.min_z = b.min.y * sz; e.max_z = b.max.y * sz;
       }
     } else if (r.kind === 'sprite') {
-      const mat = new THREE.MeshBasicMaterial({ map: r.tex, side: THREE.DoubleSide, transparent: true, alphaTest: r.img.alpha ? 0.05 : 0, depthWrite: true });
-      const plane = new THREE.Mesh(new THREE.PlaneGeometry(r.img.width, r.img.height), mat);
+      const mat = new THREE.MeshBasicMaterial({ map: r.frames > 1 ? Object.assign(r.tex.clone(), { needsUpdate: true }) : r.tex, side: THREE.DoubleSide, transparent: true, alphaTest: r.img.alpha ? 0.05 : 0, depthWrite: true });
+      const plane = new THREE.Mesh(new THREE.PlaneGeometry(r.img.width / r.frames, r.img.height), mat);
       plane.rotation.y = -Math.PI / 2;
       obj = new THREE.Group();
       obj.add(plane);
       obj.userData.plane = plane;
-      if (!e._boxSet) { e.min_x = -2; e.max_x = 2; e.min_y = -r.img.width / 2; e.max_y = r.img.width / 2; e.min_z = -r.img.height / 2; e.max_z = r.img.height / 2; }
+      if (!e._boxSet) { e.min_x = -2; e.max_x = 2; e.min_y = -r.img.width / r.frames / 2; e.max_y = r.img.width / r.frames / 2; e.min_z = -r.img.height / 2; e.max_z = r.img.height / 2; }
     } else if (r.kind === 'map') {
       const built = buildLevel(r.sub);
       obj = built.root;
@@ -357,7 +360,7 @@ export class World {
     m.opacity = blend ? Math.max(0, Math.min(1, val(e.alpha) / 100)) : 1;
     m.blending = e.bright || e.flare ? THREE.AdditiveBlending : THREE.NormalBlending;
     m.depthWrite = !(e.bright || e.flare);
-    void r;
+    if (r.frames > 1) m.map.offset.x = (((Math.floor(val(e.frame)) % r.frames) + r.frames) % r.frames) / r.frames;
   }
 
   // Soft blob shadow on the floor under models with the SHADOW flag.
