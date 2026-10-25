@@ -28,6 +28,11 @@ export const EVENT = {
 };
 const ENTITY_FLAGS = { invisible: 1, passable: 2, transparent: 4, overlay: 16, flare: 128, unlit: 512, shadow: 1024, nofog: 4096, bright: 8192, metal: 16384 };
 
+// Models much bigger than a character (rock walls and cave pieces placed as models) collide with their
+// polygons; their bounding box would fill whole rooms the player walks inside.
+const bigModel = o => o._res?.kind === 'model' && !o._res.m?.terrain && !!o._obj && !o._view &&
+  Math.max(-o.min_x, o.max_x, -o.min_y, o.max_y) > 256;
+
 // ---------- script-visible objects ----------
 let entId = 0;
 export class Ent {
@@ -572,6 +577,9 @@ export class World {
     const steps = Math.max(1, Math.ceil(len / (r * 0.5)));
     const sx = d[0] / steps, sy = d[1] / steps, sz = d[2] / steps;
     const start = [e.x, e.y, e.z];
+    const polys = mode & MODE.ignore_models ? [] : [...this.ents]
+      .filter(o => o !== e && !o.passable && !o.invisible && !(o === ctx.you && (mode & MODE.ignore_you)) && bigModel(o))
+      .map(o => this.polyCollider(o));
     const seg = new THREE.Line3(), box = new THREE.Box3(), tri = new THREE.Vector3(), cap = new THREE.Vector3();
     let blocked = null;
     for (let s = 0; s < steps; s++) {
@@ -584,7 +592,7 @@ export class World {
         box.makeEmpty().expandByPoint(seg.start).expandByPoint(seg.end);
         box.min.addScalar(-r); box.max.addScalar(r);
         let pushed = false;
-        for (const col of [this.level.collider, ...this.terrains]) col.boundsTree.shapecast({
+        for (const col of [this.level.collider, ...this.terrains, ...polys]) col.boundsTree.shapecast({
           intersectsBounds: b => b.intersectsBox(box),
           intersectsTriangle: t => {
             const dist = t.closestPointToSegment(seg, tri, cap);
@@ -608,7 +616,7 @@ export class World {
       // entity boxes
       if (!(mode & MODE.ignore_models && mode & MODE.ignore_sprites)) {
         for (const o of this.ents) {
-          if (o === e || o.passable || o.invisible || !o._res || o._res.m?.terrain) continue;
+          if (o === e || o.passable || o.invisible || !o._res || o._res.m?.terrain || bigModel(o)) continue;
           if (o === ctx.you && (mode & MODE.ignore_you)) continue;
           if (o._res.kind === 'model' && (mode & MODE.ignore_models)) continue;
           if (o._res.kind === 'sprite' && (mode & MODE.ignore_sprites)) continue;
@@ -617,6 +625,14 @@ export class World {
           const inZ = nz + zhi > o.z + o.min_z && nz + zlo < o.z + o.max_z;
           if (!inZ) continue;
           const dist = Math.hypot(ox, oy);
+          // Already overlapping before this step (spawned in a door, an entity moved onto us): only moving
+          // deeper is blocked, so the mover can always walk out.
+          const sx0 = Math.max(o.x + o.min_x, Math.min(e.x, o.x + o.max_x)) - e.x;
+          const sy0 = Math.max(o.y + o.min_y, Math.min(e.y, o.y + o.max_y)) - e.y;
+          const d0 = Math.hypot(sx0, sy0);
+          const cx = o.x + (o.min_x + o.max_x) / 2, cy = o.y + (o.min_y + o.max_y) / 2;
+          const deeper = d0 < 1e-6 ? Math.hypot(cx - nx, cy - ny) < Math.hypot(cx - e.x, cy - e.y) : dist < d0;
+          if (d0 < r && !deeper) continue;
           if (dist < r) {
             if (dist < 1e-6) { nx = e.x; ny = e.y; }
             else { nx -= ox / dist * (r - dist); ny -= oy / dist * (r - dist); }
@@ -643,6 +659,22 @@ export class World {
     }
     if (mode & MODE.activate_trigger) this.triggers(e);
     return Math.hypot(e.x - start[0], e.y - start[1], e.z - start[2]);
+  }
+
+  // World-space BVH of a big model's mesh, rebuilt when the entity moves.
+  polyCollider(o) {
+    const key = [o.x, o.y, o.z, o.pan, o.tilt, o.roll, o.scale_x, o.scale_y, o.scale_z].join();
+    if (o._poly?.key === key) return o._poly.geo;
+    o._poly?.geo.dispose();
+    const m = new THREE.Object3D();
+    S(o.x, o.y, o.z, m.position);
+    m.rotation.set(o.roll * DEG, o.pan * DEG, o.tilt * DEG, 'YZX');
+    m.scale.set(o.scale_x || 1, o.scale_z || 1, o.scale_y || 1);
+    m.updateMatrixWorld(true);
+    const geo = o._obj.geometry.clone().applyMatrix4(m.matrixWorld);
+    geo.boundsTree = new MeshBVH(geo);
+    o._poly = { key, geo };
+    return geo;
   }
 
   triggers(e) {
@@ -841,9 +873,16 @@ export class World {
     B.move = (c, e, rel, abs) => B.c_move(c, e, rel, abs, G.move_mode);
     const trace = (c, from, to, mode) => {
       const f = vec.rd(from), t = vec.rd(to);
+      // A box swept down finds a floor its centre is already below (spawned sunk into the floor, a
+      // negative gap the gravity scripts lift out of): start from the top of the box.
+      let lift = 0;
+      if ((mode & MODE.use_box) && c.me && t[2] < f[2] && Math.hypot(t[0] - f[0], t[1] - f[1]) < 1e-3) {
+        lift = Math.max(0, val(c.me.max_z));
+        f[2] += lift;
+      }
       const h = W.traceRay(f, t, mode, c.me, c.you);
       if (!h) { c.you = 0; G.result = 0; return 0; }
-      let dist = h.dist;
+      let dist = h.dist - lift;
       // use_box sweeps the bounding box of me: the distance is measured from the box surface,
       // so a downward trace gives the gap under the feet (negative when sunk into the floor).
       if ((mode & MODE.use_box) && c.me) {

@@ -156,6 +156,7 @@ export function compile(prog) {
 
     // Bitwise operators work on the fixed-point value (R.bit); the rest map to JS directly.
     function infix(a, op, b) {
+      if (op === '%') return `R.mod(${a}, ${b})`;
       return op === '&' || op === '|' || op === '^' ? `R.bit(${a}, ${jsStr(op)}, ${b})` : `(${a} ${op} ${b})`;
     }
 

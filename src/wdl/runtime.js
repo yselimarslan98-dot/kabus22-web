@@ -207,6 +207,7 @@ export class Runtime {
     return v;
   }
   bit(a, op, b) { return bit(a, op, b); }
+  mod(a, b) { return mod(a, b); }
   op(o, k, op, v) { return this.set(o, k, arith(this.get(o, k), op, v)); }
   getIdx(o, i) {
     i |= 0;
@@ -251,9 +252,12 @@ function bit(a, op, b) {
   return (op === '&' ? x & y : op === '|' ? x | y : x ^ y) / f;
 }
 
+// A6's % wraps into [0, b): the scripts step menu cursors with (cursor - 1) % n.
+function mod(a, b) { return b ? a - b * Math.floor(a / b) : 0; }
+
 function arith(a, op, b) {
   switch (op) {
-    case '+': return a + b; case '-': return a - b; case '*': return a * b; case '/': return a / b; case '%': return a % b;
+    case '+': return a + b; case '-': return a - b; case '*': return a * b; case '/': return a / b; case '%': return mod(a, b);
     case '&': case '|': case '^': return bit(a, op, b); case '<<': return a << b; case '>>': return a >> b;
   }
   return b;

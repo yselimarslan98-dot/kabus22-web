@@ -24,7 +24,7 @@ dosyalar doğrudan bilgisayarından, sadece gerektiği kadar okunur. İndirme yo
 | Animasyonlu sprite'lar | ✅ `ad+N.tga` şeritleri (ateş, alev, kovan, patlama) kare kare |
 | Ayarlar | ✅ grafik/ses/kontrol menüleri, tuş atama, parlaklık/kontrast/gama (oyunun DLL'i yerine CSS filtresi) |
 | Arazi (HMP) | ✅ çizim + poligon çarpışma |
-| Bölüm taraması | ✅ tanımlı tüm bölümler (1–103; 63 ve 96 oyunda boş) doğru karakterle oyunun kendi yükleyicisiyle açıldı (tools/cdp.mjs) |
+| Bölüm taraması | ✅ tanımlı tüm bölümler (1–103; 63 ve 96 oyunda boş) doğru karakterle oyunun kendi yükleyicisiyle açıldı ve her birinde karakter yürütüldü (tools/cdp.mjs); kapıda ya da dev kaya modellerinin içinde doğup kilitlenme, zemine gömülü doğma düzeltildi |
 | Dövüş | ✅ Demir: nişan alma (otomatik hedef), ateş, mermi izleri/sesleri, düşman saldırısı ve hasar, düşman ölümü (Mekke) · Koruyucu: kılıç vuruşları (kılıç çizgisi izi), 6 büyünün hepsi mana harcayıp çalışıyor (Tnel26) · Şeytan bölümü (62) açılıyor, boss saldırıyor |
 | Envanter | ✅ silahlar/mermi sayıları, nesneler, dokümanlar (metin + görsel), Kullan/Doldur/Göster alt menüsü |
 | Kayıt / yükleme | ✅ kayıt noktaları ve otomatik kayıt IndexedDB'ye yazar; ana menüdeki Yükle listesi tarihle gösterir, yükleme bölümü ve durumu geri getirir |
