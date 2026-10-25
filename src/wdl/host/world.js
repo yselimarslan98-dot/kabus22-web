@@ -803,7 +803,9 @@ export class World {
     B.create = B.ent_create;
     B.ent_createlocal = B.ent_create;
     B.ent_remove = (c, e) => { W.remove(e); return 0; };
-    B.remove = (c, e) => { W.remove(e ?? c.me); return 0; };
+    // remove(ptr) with an empty pointer removes nothing: it must not fall back to me
+    // (Tnel12's lever cutscene removes a pointer that may be unset, then sets v_tnel12kol_ok).
+    B.remove = (c, ...a) => { W.remove(a.length ? a[0] : c.me); return 0; };
     B.ent_purge = () => 0;
     B.ent_morph = (c, e, f) => { if (e && typeof e === 'object') { e.type = new Str(text(f)); W.attach(e); } return 0; };
 
