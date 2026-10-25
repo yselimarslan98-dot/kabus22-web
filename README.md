@@ -21,6 +21,15 @@ dosyalar doğrudan bilgisayarından, sadece gerektiği kadar okunur. İndirme yo
 | WDL (C-Script) derleyici + çalışma zamanı | ✅ oyunun 106 bin satırlık script'i JS'e derleniyor (0 hata); açılış, ana menü, giriş hikâyesi ve ilk bölüm oyunun kendi koduyla çalışıyor |
 | Motor fonksiyonları | ✅ paneller/yazılar, ses (snd_*/media_*), dosyalar (kayıtlar IndexedDB'de), klavye/fare/kumanda, level_load, ent_move/trace/scan, animasyon, parçacıklar · ⏳ eksikler test edildikçe |
 | Ara sahne videoları (WMV2/WMV3) | ✅ ilk oynatmada tarayıcıda ffmpeg.wasm ile MP4'e çevrilip IndexedDB'de saklanıyor; altyazılar kare numarasıyla (25 kare/sn, karargâh videosunda doğrulandı); media_layer'ın altındaki paneller videonun arkasında kalır; bir modelin dokusuna oynatılan videolar (ör. televizyon) o modelin üstünde oynar |
+| Animasyonlu sprite'lar | ✅ `ad+N.tga` şeritleri (ateş, alev, kovan, patlama) kare kare |
+| Ayarlar | ✅ grafik/ses/kontrol menüleri, tuş atama, parlaklık/kontrast/gama (oyunun DLL'i yerine CSS filtresi) |
+| Arazi (HMP) | ✅ çizim + poligon çarpışma |
+| Bölüm taraması | ✅ tanımlı tüm bölümler (1–103; 63 ve 96 oyunda boş) doğru karakterle oyunun kendi yükleyicisiyle açıldı (tools/cdp.mjs) |
+| Dövüş | ✅ Demir: nişan alma (otomatik hedef), ateş, mermi izleri/sesleri, düşman saldırısı ve hasar, düşman ölümü (Mekke) · Koruyucu: kılıç vuruşları (kılıç çizgisi izi), 6 büyünün hepsi mana harcayıp çalışıyor (Tnel26) · Şeytan bölümü (62) açılıyor, boss saldırıyor |
+| Envanter | ✅ silahlar/mermi sayıları, nesneler, dokümanlar (metin + görsel), Kullan/Doldur/Göster alt menüsü |
+| Kayıt / yükleme | ✅ kayıt noktaları ve otomatik kayıt IndexedDB'ye yazar; ana menüdeki Yükle listesi tarihle gösterir, yükleme bölümü ve durumu geri getirir |
+| Bulmacalar | ✅ oyundaki 6 bulmacanın hepsi açılıp çözüldü: şalter (kazankol), renkler (Ebru, Ttn3), koordinat (kizic), saat (saatodasi), tahta (dumur), pano (Untitled44, eşya ile); çözüm sonrası oyunun kendi kamera sahneleri ve açılan kapılar |
+| Oynanış | ✅ 1. bölümde yürüyerek çıkış kapısından 3. bölüme geçiş, kilitli kapı mesajları, eşya/mermi/doküman alma, ilk yardım kullanma, çıkışta tetiklenen ara sahne; kumandayla yürüme, nişan, ateş, envanter; harita (H) ve kaydırma |
 
 ## Oynamak
 
@@ -38,14 +47,6 @@ dosyalar doğrudan bilgisayarından, sadece gerektiği kadar okunur. İndirme yo
 | Menü | Esc | Start / Options |
 
 Oyunun içinde oyunun kendi tuşları geçerlidir (Seçenekler'den değiştirilebilir): oklar hareket, S silahı kaldır, D ateş, A koş, Q büyü, M envanter, H harita, Esc menü. D aynı zamanda kapı açma, eşya alma ve inceleme tuşudur. Kumandada: sol çubuk veya yön tuşları hareket, LT silahı kaldır, RT ateş/eylem, LB koş, RB büyü, Y envanter, Back harita, A onay, B / Start geri.
-
-| Arazi (HMP) | ✅ çizim + poligon çarpışma |
-| Bölüm taraması | ✅ tanımlı tüm bölümler (1–103; 63 ve 96 oyunda boş) doğru karakterle oyunun kendi yükleyicisiyle açıldı (tools/cdp.mjs) |
-| Dövüş | ✅ nişan alma (otomatik hedef), ateş, mermi izleri/sesleri, düşman saldırısı ve hasar, düşman ölümü (Mekke bölümünde test edildi) |
-| Envanter | ✅ silahlar/mermi sayıları, nesneler, dokümanlar (metin + görsel), Kullan/Doldur/Göster alt menüsü |
-| Kayıt / yükleme | ✅ kayıt noktaları ve otomatik kayıt IndexedDB'ye yazar; ana menüdeki Yükle listesi tarihle gösterir, yükleme bölümü ve durumu geri getirir |
-| Bulmacalar | ✅ oyundaki 6 bulmacanın hepsi açılıp çözüldü: şalter (kazankol), renkler (Ebru, Ttn3), koordinat (kizic), saat (saatodasi), tahta (dumur), pano (Untitled44, eşya ile); çözüm sonrası oyunun kendi kamera sahneleri ve açılan kapılar |
-| Oynanış | ✅ 1. bölümde yürüyerek çıkış kapısından 3. bölüme geçiş, kilitli kapı mesajları, eşya/mermi/doküman alma, ilk yardım kullanma, çıkışta tetiklenen ara sahne; kumandayla yürüme, nişan, ateş, envanter; harita (H) ve kaydırma |
 
 ## Uzak kaynak (kendi kopyan için)
 
