@@ -104,8 +104,8 @@ export class VideoConverter {
     }
   }
 
-  // All videos the game can play: the menu loop and the current language's cutscenes.
+  // All videos the game can play: the shared ones (menu loop, TV) and the current language's cutscenes.
   allVideos(language = 'turkish') {
-    return [...this.fs.files.keys()].filter(k => k === '_data/video/kn_arg.k22' || k.startsWith(`_data/language/${language}/video/`));
+    return [...this.fs.files.keys()].filter(k => k.startsWith('_data/video/') || k.startsWith(`_data/language/${language}/video/`));
   }
 }

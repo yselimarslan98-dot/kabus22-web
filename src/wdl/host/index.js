@@ -67,6 +67,14 @@ export class Game {
     B.video_set = (c, x, y) => { if (val(x) && val(y)) this.setScreen(val(x), val(y)); return 1; };
     B.video_window = () => 0;
     B.video_switch = () => 0;
+    // dl_PaKaGa(brightness -100..100, contrast -80..80, gamma -100..100): the game's DLL sets the screen's
+    // gamma ramp. Approximated with a CSS filter, neutral at the game's defaults (0, 0, 30).
+    B.dl_pakaga = (c, pa, ka, ga) => {
+      const b = (1 + val(pa) / 200) * (1 + (val(ga) - 30) / 250), k = 1 + val(ka) / 100;
+      const f = Math.abs(b - 1) < 1e-3 && Math.abs(k - 1) < 1e-3 ? '' : `brightness(${b.toFixed(3)}) contrast(${k.toFixed(3)})`;
+      for (const el of [this.renderer.domElement, this.underCanvas, this.uiCanvas, this.audio.videoLayer].filter(Boolean)) el.style.filter = f;
+      return 1;
+    };
 
     const ini = this.readIni();
     B.ini_getvariable = (c, key) => new Str(ini[text(key).toLowerCase()] ?? '0');
