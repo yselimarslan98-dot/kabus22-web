@@ -50,6 +50,7 @@ export class Game {
     this.audio.videoLayer = document.getElementById('game-video');
     this.statusEl = document.getElementById('game-status');
     this.world = new World(R, fs, this.images, renderer, scene);
+    this.audio.onVideoSkin = (e, el) => this.world.setVideoSkin(e, el);
     this.input = new EngineInput(R, uiCanvas, (x, y) => this.toScreen(x, y));
     this.views = [];
     this.installHost();
@@ -211,7 +212,7 @@ export class Game {
 
   // While a video the game waits for is still converting, say so.
   showStatus() {
-    const waiting = [...this.audio.media.values()].find(m => m.video && !m.el && !m.ended);
+    const waiting = [...this.audio.media.values()].find(m => m.video && !m.el && !m.ended && !m.entity);
     const el = this.statusEl;
     if (!el) return;
     if (!waiting) { el.hidden = true; return; }

@@ -300,6 +300,17 @@ export class World {
     else if (r.kind === 'sprite') this.syncSprite(e, o, r);
   }
 
+  // media_play into bmap_for_entity: the video becomes the model's skin.
+  setVideoSkin(e, el) {
+    e._videoSkin?.dispose();
+    e._videoSkin = null;
+    if (!el) return;
+    const t = new THREE.VideoTexture(el);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.flipY = false;
+    e._videoSkin = t;
+  }
+
   syncModel(e, o, r) {
     // frame interpolation
     const n = r.m.frames.length;
@@ -317,7 +328,7 @@ export class World {
         o.geometry.computeVertexNormals();
       }
     }
-    const skin = r.skins[Math.max(0, Math.min(r.skins.length - 1, (val(e.skin) | 0) - 1))] || r.skins[0];
+    const skin = e._videoSkin || r.skins[Math.max(0, Math.min(r.skins.length - 1, (val(e.skin) | 0) - 1))] || r.skins[0];
     const m = o.material;
     if (m.map !== skin) { m.map = skin; m.emissiveMap = skin; m.needsUpdate = true; }
     const blend = e.transparent || e.bright;
@@ -642,12 +653,16 @@ export class World {
     const [pan, tilt, range] = vec.rd(ang);
     const G = this.R.G;
     let count = 0;
+    // Without an entity (a starter, e.g. using an inventory item from player.x) the scan looks the way the
+    // entity standing at the scan origin faces; the rooms' fixed cameras often look elsewhere.
+    const at = me ? null : [...this.ents].find(o => o.x === px && o.y === py && o.z === pz);
+    const dir = me ? val(me.pan) : at ? val(at.pan) : val(G.camera?.pan);
     for (const o of [...this.ents]) {
       if (o === me || !o.enable_scan || typeof o.event !== 'function') continue;
       const dx = o.x - px, dy = o.y - py, dz = o.z - pz, dist = Math.hypot(dx, dy, dz);
       if (dist > range) continue;
       if (pan < 360) {
-        const da = Math.abs(((Math.atan2(dy, dx) / DEG - (me ? me.pan : 0)) % 360 + 540) % 360 - 180);
+        const da = Math.abs(((Math.atan2(dy, dx) / DEG - dir) % 360 + 540) % 360 - 180);
         if (da > pan / 2) continue;
       }
       void tilt;
@@ -883,7 +898,8 @@ export class World {
     };
     B.bmap_for_entity = (c, e) => {
       const f = text(e?.type);
-      return f && /\.(tga|pcx|bmp)$/i.test(f) ? R.bmap('', f) : 0;
+      if (f && /\.(tga|pcx|bmp)$/i.test(f)) return R.bmap('', f);
+      return e && typeof e === 'object' ? { kind: 'bmap', file: '', entity: e } : 0;
     };
   }
 }

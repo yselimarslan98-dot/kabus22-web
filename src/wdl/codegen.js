@@ -231,6 +231,8 @@ export function compile(prog) {
       if (WAITS.has(name) && !isFunc(name)) {
         const a = args[0] ? ex(args[0]) : '1';
         if (name === 'sleep') return `(yield -(${a}))`;
+        // waitt counts ticks (1/16 s), not frames.
+        if (name === 'waitt') return `(yield -(${a}) / 16)`;
         if (name === 'wait_for') return `(yield R.waitFor(${a}))`;
         return `(yield ${a})`;
       }

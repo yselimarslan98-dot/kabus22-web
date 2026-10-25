@@ -26,10 +26,10 @@ function sendFile(req, res, file, type) {
   const range = /bytes=(\d+)-(\d*)/.exec(req.headers.range || '');
   if (range) {
     const start = +range[1], end = range[2] ? Math.min(+range[2], size - 1) : size - 1;
-    res.writeHead(206, { 'Content-Type': type, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Content-Length': end - start + 1, 'Accept-Ranges': 'bytes' });
+    res.writeHead(206, { 'Content-Type': type, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Content-Length': end - start + 1, 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-cache' });
     createReadStream(file, { start, end }).pipe(res);
   } else {
-    res.writeHead(200, { 'Content-Type': type, 'Content-Length': size, 'Accept-Ranges': 'bytes' });
+    res.writeHead(200, { 'Content-Type': type, 'Content-Length': size, 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-cache' });
     createReadStream(file).pipe(res);
   }
 }

@@ -26,8 +26,8 @@ export class EngineAudio {
     B.snd_stopall = () => { for (const h of [...this.handles.keys()]) this.stop(h); return 0; };
     B.snd_pause = (c, h) => { this.stop(val(h)); return 0; };
 
-    B.media_play = (c, file, target, vol) => this.mediaPlay(file, vol, false);
-    B.media_loop = (c, file, target, vol) => this.mediaPlay(file, vol, true);
+    B.media_play = (c, file, target, vol) => this.mediaPlay(file, vol, false, target);
+    B.media_loop = (c, file, target, vol) => this.mediaPlay(file, vol, true, target);
     B.media_stop = (c, h) => {
       h = val(h);
       for (const [k, m] of this.media) if (!h || k === h) { m.stop(); this.media.delete(k); }
@@ -48,7 +48,7 @@ export class EngineAudio {
   // media_layer of the video on screen: panels below it are covered by the video.
   videoLayerOf() {
     let layer = Infinity;
-    for (const m of this.media.values()) if (m.video && m.el && !m.ended) layer = Math.min(layer, m.layer);
+    for (const m of this.media.values()) if (m.video && m.el && !m.ended && !m.entity) layer = Math.min(layer, m.layer);
     return layer;
   }
 
@@ -111,10 +111,13 @@ export class EngineAudio {
 
   // Music and videos. Audio files stream through an <audio> element; AVI videos are not playable
   // in browsers, so they end at once (the scripts then continue as after the video).
-  mediaPlay(file, vol, loop) {
+  // A video whose target is an entity's skin (bmap_for_entity) plays on that model instead of the screen.
+  mediaPlay(file, vol, loop, target) {
     const name = text(file);
     const h = this.next++;
-    const m = { ended: false, el: null, layer: val(this.R.G.media_layer), stop() { this.ended = true; if (this.el) { this.el.pause(); this.el.remove(); URL.revokeObjectURL(this.el.src); } } };
+    const entity = target?.entity || null;
+    const onSkin = this.onVideoSkin;
+    const m = { ended: false, el: null, entity, layer: val(this.R.G.media_layer), stop() { this.ended = true; if (this.el) { this.el.pause(); this.el.remove(); URL.revokeObjectURL(this.el.src); } if (entity) onSkin?.(entity, null); } };
     this.media.set(h, m);
     this.R.G.media_handle = h;
     const resolved = this.fs.resolve(name) || this.fs.resolve(name.split(/[\\/]/).pop());
@@ -138,7 +141,8 @@ export class EngineAudio {
         el.onerror = () => { this.R.warn(`video hatası: ${name} (${el.error?.message || el.error?.code})`); m.stop(); };
         el.onplaying = () => this.R.host.onInfo?.(`video oynuyor: ${resolved} ${el.videoWidth}x${el.videoHeight}, ${el.duration.toFixed(1)} sn`);
         m.el = el;
-        this.videoLayer?.append(el);
+        if (entity) onSkin?.(entity, el);
+        else this.videoLayer?.append(el);
         el.play().catch(() => { el.muted = true; el.play().catch(() => m.stop()); });
       }, e => { this.R.warnOnce('video oynatılamadı: ' + name + ' (' + e.message + ')'); m.ended = true; });
       return h;
