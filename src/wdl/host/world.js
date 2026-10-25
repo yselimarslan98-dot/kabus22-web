@@ -533,14 +533,21 @@ export class World {
       if (!kind) continue;
       if (e.passable && !(mode & MODE.scan_texture)) continue;
       entBox(e, box);
-      if (!ray.intersectBox(box, hitP)) continue;
+      // A trace starting inside a model's box is still checked against its mesh below.
+      const inside = !!e._obj && (kind === 'model' || kind === 'map') && box.containsPoint(a);
+      if (!inside && !ray.intersectBox(box, hitP)) continue;
+      if (inside) hitP.copy(a);
       const d = hitP.distanceTo(a);
       if (d > len || (best && d >= best.dist)) continue;
       // polygonal check for models / maps when close: refine with the mesh
       if (e._obj && (kind === 'model' || kind === 'map')) {
         this.ray.set(a, dir); this.ray.far = len;
         e._obj.updateMatrixWorld(true);
+        // Both sides count: a trace that starts inside the model (a sword in a body) leaves through a back face.
+        const sides = [];
+        e._obj.traverse(o => { if (o.material && !Array.isArray(o.material)) { sides.push([o.material, o.material.side]); o.material.side = THREE.DoubleSide; } });
         const hits = this.ray.intersectObject(e._obj, true);
+        for (const [m, s] of sides) m.side = s;
         if (!hits.length) continue;
         if (best && hits[0].distance >= best.dist) continue;
         best = { dist: hits[0].distance, point: hits[0].point, normal: hits[0].face ? hits[0].face.normal.clone().transformDirection(hits[0].object.matrixWorld) : dir.clone().negate(), ent: e };

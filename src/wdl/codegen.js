@@ -199,6 +199,12 @@ export function compile(prog) {
       if (!e) return '0';
       if (e.k === 'mem') {
         if (e.o.k === 'id' && isArrayName(e.o.v) && VECOFF[e.name] !== undefined) return `R.ref(${idRef(e.o.v)}, ${VECOFF[e.name]})`;
+        // `var v; ent_vertex(v.x, n)`: a scalar local used as a vector argument writes into its companion.
+        if (e.o.k === 'id' && scalarLocal(e.o.v) && VECOFF[e.name] !== undefined) {
+          const v = loc(e.o.v), c = companion(e.o.v);
+          writeback.push(`(typeof ${v} !== 'object' ? (${v} = ${c}[0]) : 0)`);
+          return `((typeof ${v} === 'object' && ${v}) ? R.ref(${v}, ${jsStr(e.name)}) : (${c}[0] = ${v}, R.ref(${c}, ${VECOFF[e.name]})))`;
+        }
         return `R.ref(${ex(e.o)}, ${jsStr(e.name)})`;
       }
       if (e.k === 'idx') return `R.ref(${ex(e.o)}, ${ex(e.i)})`;
