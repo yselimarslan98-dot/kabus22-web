@@ -28,12 +28,16 @@ export const EVENT = {
 };
 const ENTITY_FLAGS = { invisible: 1, passable: 2, transparent: 4, overlay: 16, flare: 128, unlit: 512, shadow: 1024, nofog: 4096, bright: 8192, metal: 16384 };
 
+// Static decoration: models with no action, or only the brightness helper action.
+const decor = o => o._res?.kind === 'model' && (!o._actionName || /parlaklik_(ayari|degeri)$/i.test(o._actionName));
 // Models much bigger than a character (rock walls and cave pieces placed as models) collide with their
 // polygons; their bounding box would fill whole rooms the player walks inside.
-// Static decoration (no action, or only the brightness helper action) does the same: railings, scaffolds,
-// stair frames, often rotated, whose axis-aligned boxes close passages the player walks through.
 const bigModel = o => o._res?.kind === 'model' && !o._res.m?.terrain && !!o._obj && !o._view &&
-  (Math.max(-o.min_x, o.max_x, -o.min_y, o.max_y) > 256 || !o._actionName || /parlaklik_(ayari|degeri)$/i.test(o._actionName));
+  Math.max(-o.min_x, o.max_x, -o.min_y, o.max_y) > 256;
+// Smaller decoration does not block movers at all. The levels need it: iron bars span the only corridor
+// to kanodasi (massotaltkat), railings and stair frames stand in passages (start4, start5); none of the
+// models has the POLYGON flag, and the gravity scripts trace with IGNORE_MODELS.
+const walkThrough = o => decor(o) && !bigModel(o);
 
 // ---------- script-visible objects ----------
 let entId = 0;
@@ -625,7 +629,7 @@ export class World {
       // entity boxes
       if (!(mode & MODE.ignore_models && mode & MODE.ignore_sprites)) {
         for (const o of this.ents) {
-          if (o === e || o.passable || o.invisible || !o._res || o._res.m?.terrain || bigModel(o)) continue;
+          if (o === e || o.passable || o.invisible || !o._res || o._res.m?.terrain || bigModel(o) || walkThrough(o)) continue;
           if (o === ctx.you && (mode & MODE.ignore_you)) continue;
           if (o._res.kind === 'model' && (mode & MODE.ignore_models)) continue;
           if (o._res.kind === 'sprite' && (mode & MODE.ignore_sprites)) continue;
