@@ -546,7 +546,9 @@ export class World {
       if (e.passable && (mode & MODE.ignore_passable || mode & MODE.ignore_passents)) continue;
       if (e.invisible && !e._res) continue;
       const kind = e._res?.kind;
-      if (kind === 'model' && (mode & MODE.ignore_models)) continue;
+      // A terrain is ground, not a model: IGNORE_MAPS skips it, IGNORE_MODELS doesn't (the gravity traces
+      // use IGNORE_MODELS; with the terrain skipped the player sank to the level floor under Mezarlik's hill)
+      if (kind === 'model' && e._res.m?.terrain ? mode & MODE.ignore_maps : kind === 'model' && (mode & MODE.ignore_models)) continue;
       if (kind === 'sprite' && (mode & MODE.ignore_sprites)) continue;
       if (!kind) continue;
       if (e.passable && !(mode & MODE.scan_texture)) continue;
@@ -572,6 +574,10 @@ export class World {
       } else best = { dist: d, point: hitP.clone(), normal: dir.clone().negate(), ent: e };
     }
     if (!best) return null;
+    // The normal faces the side the trace came from. Some WMB floors and the terrains are wound the other
+    // way; a downward trace onto them gave normal.z == -1 and the gravity scripts (normal.z == 1) let the
+    // player hover (Start7 tunnel floor) or float over terrain.
+    if (best.normal.dot(dir) > 0) best.normal.negate();
     return { dist: best.dist, point: A(best.point), normal: A(best.normal), ent: best.ent };
   }
 
@@ -923,8 +929,11 @@ export class World {
         dist -= (dx > 0 ? dx * e.max_x : dx * e.min_x) + (dy > 0 ? dy * e.max_y : dy * e.min_y) + (dz > 0 ? dz * e.max_z : dz * e.min_z);
       }
       vec.wr(G.target, ...h.point);
-      // vars are fixed point in A6, so a flat floor gives normal.z == 1 exactly; scripts test that
-      vec.wr(G.normal, ...h.normal.map(n => Math.round(n * 1000) / 1000));
+      // vars are fixed point in A6, so a flat floor gives normal.z == 1 exactly; scripts test that.
+      // The players' gravity only pulls down onto normal.z == 1: walkable terrain counts as flat ground
+      // there, otherwise the player floats over every slope of a hill (Mezarlik).
+      const terrainFloor = h.ent?._res?.m?.terrain && h.normal[2] > 0.7;   // normals face the tracer (traceRay)
+      vec.wr(G.normal, ...(terrainFloor ? [0, 0, 1] : h.normal.map(n => Math.round(n * 1000) / 1000)));
       c.you = h.ent || 0;   // you is the hit entity, or NULL when the ray hit the level
       return (G.result = dist);
     };
