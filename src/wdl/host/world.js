@@ -613,6 +613,15 @@ export class World {
               const n = cap.sub(tri);
               if (n.lengthSq() < 1e-8) return;
               n.normalize();
+              // An edge above the step height is a wall, not a step: the round end of the capsule touching
+              // it from the side must not lift the mover onto it (players climbed 25-unit pillar plinths
+              // in Start7 and ended up inside the pillars).
+              if (stepUp > 0 && n.y > 0 && tri.y > pos.y + zlo + stepUp + 2) {
+                n.y = 0;
+                const l = Math.hypot(n.x, n.z);
+                if (l < 1e-3) return;
+                n.multiplyScalar(1 / l);
+              }
               seg.start.addScaledVector(n, r - dist);
               seg.end.addScaledVector(n, r - dist);
               pushed = true;
