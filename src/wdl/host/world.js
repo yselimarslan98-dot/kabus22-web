@@ -534,9 +534,12 @@ export class World {
     dir.divideScalar(len);
     let best = null;
     if (this.level && !(mode & MODE.ignore_maps)) {
+      // Like A6, level geometry is only hit from the front: a trace that starts inside a block (a beam, a
+      // pillar) passes out of it instead of reporting the block's inner face as a floor or a wall.
       const ray = new THREE.Ray(a, dir);
-      const hit = this.level.collider.boundsTree.raycastFirst(ray, THREE.DoubleSide);
-      if (hit && hit.distance <= len) best = { dist: hit.distance, point: hit.point, normal: hit.face.normal.clone(), ent: 0 };
+      const hit = this.level.collider.boundsTree.raycast(ray, THREE.DoubleSide)
+        .filter(h => h.distance <= len && h.face.normal.dot(dir) < 0).sort((p, q) => p.distance - q.distance)[0];
+      if (hit) best = { dist: hit.distance, point: hit.point, normal: hit.face.normal.clone(), ent: 0 };
     }
     const ray = new THREE.Ray(a, dir);
     const box = new THREE.Box3(), hitP = new THREE.Vector3();

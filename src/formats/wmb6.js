@@ -55,11 +55,11 @@ export function parseWmb6(buf) {
   }
 
   // Faces -> triangle fans, grouped by texture + lightmap page.
-  const V = list(LIST.vertices), E = list(LIST.edges), EL = list(LIST.edgeList), F = list(LIST.faces);
+  const V = list(LIST.vertices), E = list(LIST.edges), EL = list(LIST.edgeList), F = list(LIST.faces), P = list(LIST.planes);
   const groups = new Map();
   const corner = [];
   for (let o = F.off; o < F.off + F.len; o += 24) {
-    const firstEdge = u32(o + 4), numEdges = u16(o + 8), mat = materials[u16(o + 10)];
+    const plane = u16(o), side = u16(o + 2), firstEdge = u32(o + 4), numEdges = u16(o + 8), mat = materials[u16(o + 10)];
     if (!mat || mat.type === SURFACE.none || numEdges < 3) continue;
     const luxel = 1 << u8[o + 12], page = u8[o + 13], lx = u8[o + 14], ly = u8[o + 15];
     const tex = textures[mat.texture];
@@ -77,6 +77,18 @@ export function parseWmb6(buf) {
       corner.push(x, y, z, s, t);
     }
     const bs = Math.floor(smin / luxel), bt = Math.floor(tmin / luxel);
+    // Most faces list their corners clockwise seen from the front (plane normal, negated when side is set);
+    // some are stored the other way round. Wind every triangle the same way, from the plane, so the
+    // normals of traces and lighting face outwards (Start7's pit floor read as facing down).
+    let nx = 0, ny = 0, nz = 0;
+    for (let k = 0, n = corner.length; k < n; k += 5) {
+      const j = (k + 5) % n;
+      nx += (corner[k + 1] - corner[j + 1]) * (corner[k + 2] + corner[j + 2]);
+      ny += (corner[k + 2] - corner[j + 2]) * (corner[k] + corner[j]);
+      nz += (corner[k] - corner[j]) * (corner[k + 1] + corner[j + 1]);
+    }
+    const sg = side ? -1 : 1, po = P.off + plane * 20;
+    const reversed = plane * 20 < P.len && (nx * f32(po) + ny * f32(po + 4) + nz * f32(po + 8)) * sg > 0;
 
     const passable = mat.passable || mat.type === SURFACE.turbulence;
     const key = `${mat.texture}:${mat.type === SURFACE.shaded ? page : -1}:${mat.type}:${passable}`;
@@ -92,7 +104,7 @@ export function parseWmb6(buf) {
       g.uv.push(corner[k + 3] / (tex ? tex.width : 64), corner[k + 4] / (tex ? tex.height : 64));
       g.uv1.push((lx + corner[k + 3] / luxel - bs + 0.5) / lmSize, (ly + corner[k + 4] / luxel - bt + 0.5) / lmSize);
     }
-    for (let k = 2; k < numEdges; k++) g.idx.push(base, base + k, base + k - 1);
+    for (let k = 2; k < numEdges; k++) reversed ? g.idx.push(base, base + k - 1, base + k) : g.idx.push(base, base + k, base + k - 1);
   }
 
   return { textures, materials, lightmaps, objects, info, groups: [...groups.values()] };
