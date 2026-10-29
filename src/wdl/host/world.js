@@ -147,12 +147,14 @@ export class World {
     }
     if (/\.(tga|pcx|bmp)$/i.test(name)) {
       const img = decodeImage(name, bytes);
-      const tex = dataTexture(img);
-      tex.flipY = true;
       // name+N.tga: an animated sprite, N frames side by side; e.frame picks one
       const frames = +(/\+(\d+)\.\w+$/.exec(name)?.[1] || 1);
-      if (frames > 1) tex.repeat.x = 1 / frames;
-      return { kind: 'sprite', img, tex, frames };
+      // a long strip (Seytan_k: 244 frames, 18300 px) is wider than WebGL allows: lay the frames out in rows
+      const fw = img.width / frames, cols = img.width > 4096 ? Math.max(1, Math.floor(4096 / fw)) : frames, rows = Math.ceil(frames / cols);
+      const tex = dataTexture(rows > 1 ? gridImage(img, fw, cols, rows) : img);
+      tex.flipY = true;
+      if (frames > 1) tex.repeat.set(1 / cols, 1 / rows);
+      return { kind: 'sprite', img, tex, frames, cols, rows };
     }
     throw new Error('desteklenmeyen tür');
   }
@@ -377,7 +379,10 @@ export class World {
     m.opacity = blend ? Math.max(0, Math.min(1, val(e.alpha) / 100)) : 1;
     m.blending = e.bright || e.flare ? THREE.AdditiveBlending : THREE.NormalBlending;
     m.depthWrite = !(e.bright || e.flare);
-    if (r.frames > 1) m.map.offset.x = (((Math.floor(val(e.frame)) % r.frames) + r.frames) % r.frames) / r.frames;
+    if (r.frames > 1) {
+      const f = ((Math.floor(val(e.frame)) % r.frames) + r.frames) % r.frames;
+      m.map.offset.set((f % r.cols) / r.cols, (r.rows - 1 - Math.floor(f / r.cols)) / r.rows);
+    }
   }
 
   // Soft blob shadow on the floor under models with the SHADOW flag.
@@ -1008,6 +1013,15 @@ function dataTexture(img) {
   t.generateMipmaps = true;
   t.needsUpdate = true;
   return t;
+}
+
+function gridImage(img, fw, cols, rows) {
+  const w = fw * cols, h = img.height, data = new Uint8Array(w * h * rows * 4);
+  for (let f = 0; f < img.width / fw; f++) {
+    const cx = (f % cols) * fw, cy = Math.floor(f / cols) * h;
+    for (let y = 0; y < h; y++) data.set(img.data.subarray((y * img.width + f * fw) * 4, (y * img.width + f * fw + fw) * 4), ((cy + y) * w + cx) * 4);
+  }
+  return { ...img, data, width: w, height: h * rows };
 }
 
 function weldMap(m) { return new Uint32Array(m.frames[0].pos.length / 3).map((_, i) => i); }
