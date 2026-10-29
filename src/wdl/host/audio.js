@@ -94,10 +94,12 @@ export class EngineAudio {
 
   tune(s, vol, freq, bal) {
     if (!s) return;
+    // scripts can compute NaN/Infinity (3D volume at zero distance); Web Audio throws on those
+    const clamp = (x, lo, hi) => x !== x ? 0 : Math.max(lo, Math.min(hi, x));
     const sv = (this.R.G.sound_vol ?? 100) / 100;
-    s.gain.gain.value = Math.max(0, val(vol) / 100) * sv;
-    s.pan.pan.value = Math.max(-1, Math.min(1, val(bal) / 100));
-    if (val(freq) > 0) { s.rate = val(freq) / 100; if (s.src) s.src.playbackRate.value = s.rate; }
+    s.gain.gain.value = clamp(val(vol) / 100, 0, 1) * sv;
+    s.pan.pan.value = clamp(val(bal) / 100, -1, 1);
+    if (val(freq) > 0 && Number.isFinite(val(freq))) { s.rate = val(freq) / 100; if (s.src) s.src.playbackRate.value = s.rate; }
   }
 
   stop(h) {
