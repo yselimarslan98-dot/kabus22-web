@@ -6,9 +6,9 @@ import { parseTga } from '../formats/tga.js';
 import { parseWmb6 } from '../formats/wmb6.js';
 import { buildLevel, toScene } from './level.js';
 
-// A6 entity flag bits as stored in this game's WMB6 files (libgamestudio's "old" layout;
-// checked against Kk: cars and barrels carry SHADOW, lamps BRIGHT, YapayKutu boxes INVISIBLE).
-const F = { invisible: 1, passable: 2, transparent: 4, overlay: 16, unlit: 512, bright: 8192 };
+// A6 entity flag bits as stored in this game's WMB6 files. Bits 0-7 are FLAG1..FLAG8 (script data:
+// back-side door triggers and Ebru's items carry flag1), not INVISIBLE/PASSABLE/TRANSPARENT/OVERLAY.
+const F = { unlit: 512, bright: 8192 };
 const IDLE = /^(frame|bekle|tbekle|stand|idle|dur|wait|fly|uc)$/;
 const DEG = Math.PI / 180;
 

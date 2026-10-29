@@ -26,7 +26,9 @@ export const EVENT = {
   event_shoot: 8, event_trigger: 9, event_touch: 10, event_release: 11, event_click: 12, event_sonar: 13,
   event_frame: 14, event_disconnect: 15, event_rightclick: 16,
 };
-const ENTITY_FLAGS = { invisible: 1, passable: 2, transparent: 4, overlay: 16, flare: 128, unlit: 512, shadow: 1024, nofog: 4096, bright: 8192, metal: 16384 };
+// The low byte is FLAG1..FLAG8 (the scripts read them: arka_taraf = flag1 on back-side door triggers,
+// NS_EbruAlsinmi = flag1 on items Ebru may take); reading bit 1 as INVISIBLE hid those items.
+const ENTITY_FLAGS = { flag1: 1, flag2: 2, flag3: 4, flag4: 8, flag5: 16, flag6: 32, flag7: 64, flag8: 128, unlit: 512, shadow: 1024, nofog: 4096, bright: 8192, metal: 16384 };
 
 // Static decoration: models with no action, or only the brightness helper action.
 const decor = o => o._res?.kind === 'model' && (!o._actionName || /parlaklik_(ayari|degeri)$/i.test(o._actionName));

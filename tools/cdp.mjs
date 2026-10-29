@@ -13,7 +13,7 @@ const port = 9300 + Math.floor(Math.random() * 500);
 // K22_PROFILE keeps IndexedDB (converted videos, saves) between runs.
 const profile = process.env.K22_PROFILE || mkdtempSync(join(tmpdir(), 'k22cdp-'));
 const chrome = spawn(CHROME, [`--remote-debugging-port=${port}`, '--headless=new', `--user-data-dir=${profile}`, '--no-first-run',
-  '--autoplay-policy=no-user-gesture-required', '--window-size=1280,720', '--mute-audio', 'about:blank'], { stdio: 'ignore' });
+  '--autoplay-policy=no-user-gesture-required', '--window-size=1280,720', '--mute-audio', 'about:blank'], { stdio: 'ignore', windowsHide: true });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 let ws, id = 0, pausedResolve = null;
