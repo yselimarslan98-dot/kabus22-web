@@ -1,5 +1,6 @@
 // Unified input: keyboard + mouse (pointer lock) + Gamepad API (standard mapping:
 // Xbox, DualSense/DualShock, Switch Pro all report the same layout in browsers).
+import { readPad } from './pad.js';
 const DEADZONE = 0.15;
 
 export const PAD = {
@@ -45,8 +46,7 @@ export class Input {
   }
 
   poll() {
-    const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
-    this.pad = pads.find(p => p.mapping === 'standard') || pads[0] || null;
+    this.pad = readPad();
     this.padPrev = this.padNow;
     this.padNow = this.pad ? this.pad.buttons.map(b => b.pressed) : [];
     if (this.padNow.some(Boolean) || (this.pad && this.pad.axes.some(a => Math.abs(a) > 0.4))) this.lastDevice = 'gamepad';

@@ -1,5 +1,6 @@
 // Keyboard, mouse and gamepad -> engine variables (key_*, mouse_*, joy_*), with DirectInput scancodes
 // for key_pressed(), as the scripts store key bindings as scancodes in options.k22.
+import { readPad } from '../../engine/pad.js';
 
 const SCAN = {
   Escape: 1, Digit1: 2, Digit2: 3, Digit3: 4, Digit4: 5, Digit5: 6, Digit6: 7, Digit7: 8, Digit8: 9, Digit9: 10, Digit0: 11,
@@ -97,9 +98,9 @@ export class EngineInput {
     this.mouseDelta[0] = this.mouseDelta[1] = 0;
 
     // Standard-mapping gamepad -> joystick. Buttons 1..12 follow the DirectInput order of an Xbox pad.
-    const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
-    const p = pads[0];
-    G.num_joysticks = pads.length;
+    const p = readPad();
+    G.num_joysticks = p ? 1 : 0;
+    if (p?.id !== this.padId) { this.padId = p?.id; this.R.host?.onInfo?.(p ? 'Kol: ' + p.id : 'Kol yok'); }
     if (p) {
       const dz = v => (Math.abs(v) < 0.15 ? 0 : v);
       let x = dz(p.axes[0] || 0), y = dz(p.axes[1] || 0);
