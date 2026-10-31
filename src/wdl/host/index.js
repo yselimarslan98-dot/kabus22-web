@@ -2,6 +2,7 @@
 import { preprocess } from '../lexer.js';
 import { parse } from '../parser.js';
 import { compile } from '../codegen.js';
+import { patchSource } from '../patches.js';
 import { Runtime, Str, Ref } from '../runtime.js';
 import { UI, Images, FLAGS } from './ui.js';
 import { EngineInput } from './input.js';
@@ -18,7 +19,7 @@ export async function compileGame(fs, entry, onProgress = () => {}) {
   const warns = [];
   const { tokens } = await preprocess(entry, async name => {
     const k = fs.resolve(name) || fs.resolve(name.split(/[\\/]/).pop());
-    return k ? fs.readText(k) : null;
+    return k ? patchSource(name, await fs.readText(k), w => warns.push(w)) : null;
   }, { onWarn: w => warns.push(w) });
   onProgress(`${tokens.length} simge ayrıştırılıyor`);
   const prog = parse(tokens, { onWarn: w => warns.push(w) });
